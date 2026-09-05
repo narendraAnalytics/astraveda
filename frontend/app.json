@@ -33,6 +33,12 @@
           "imageWidth": 76
         }
       ],
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true
+        }
+      ],
       "@clerk/expo",
       "expo-secure-store",
       "expo-localization",

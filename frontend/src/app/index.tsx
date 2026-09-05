@@ -26,20 +26,36 @@ const TOOL_CARD_WIDTH =
 const LOGO_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600768/logo_mmxfny.png';
 const BANNER_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600814/bannerimage_hgtcjz.png';
 
+// Cloudinary delivers these source PNGs at 1-3 MB / 1200px+. Resize + auto-format
+// at the CDN so expo-image gets a small asset it can reliably decode into a chip.
+// Keep .png so the transparent artwork stays transparent; just cap the width.
+const cdnThumb = (url: string) =>
+  url.replace('/image/upload/', '/image/upload/w_180,c_fit/');
+
+const KUNDALI_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788625500/kundali_ia4oaj.png');
+const PALM_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788625851/palmreading_q10d1o.png');
+const FACE_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788626138/facereading_ry0e2s.png');
+const VASTU_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788627479/houseai_fus43o.png');
+const AURA_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788627733/aurasign_ctimto.png');
+// Plain transparent art (trimmed) so it sits on the card like Aura Scan / Vastu do.
+const DREAM_URL =
+  'https://res.cloudinary.com/dkqbzwicr/image/upload/e_trim:20,w_180,c_fit/v1788628611/dreamintrupter_tmbxvi.png';
+
 type Tool = {
   title: string;
   subtitle: string;
   icon: keyof typeof Feather.glyphMap;
+  image?: string;
   colors: readonly [string, string];
 };
 
 const tools: Tool[] = [
-  { title: 'My Kundli', subtitle: 'Explore your cosmos', icon: 'star', colors: ['#fff0d9', '#ffe1be'] },
-  { title: 'Palm Reading', subtitle: 'Your hands, your story', icon: 'heart', colors: ['#f9e7ef', '#f7d7e2'] },
-  { title: 'Face Reading', subtitle: 'Reveal your nature', icon: 'smile', colors: ['#e3f1fb', '#cfe5f5'] },
-  { title: 'Vastu AI', subtitle: 'Harmonize your space', icon: 'home', colors: ['#e8f5dc', '#d9edc8'] },
-  { title: 'Aura Scan', subtitle: 'See your energy', icon: 'circle', colors: ['#e6e4ff', '#d8d2fc'] },
-  { title: 'Dream Interpreter', subtitle: 'Decode your dreams', icon: 'moon', colors: ['#efe1f5', '#e5d2ef'] },
+  { title: 'My Kundli', subtitle: 'Explore your cosmos', icon: 'star', image: KUNDALI_URL, colors: ['#fff0d9', '#ffe1be'] },
+  { title: 'Palm Reading', subtitle: 'Your hands, your story', icon: 'heart', image: PALM_URL, colors: ['#f9e7ef', '#f7d7e2'] },
+  { title: 'Face Reading', subtitle: 'Reveal your nature', icon: 'smile', image: FACE_URL, colors: ['#fdefe1', '#f8ddce'] },
+  { title: 'Vastu AI', subtitle: 'Harmonize your space', icon: 'home', image: VASTU_URL, colors: ['#e8f5dc', '#d9edc8'] },
+  { title: 'Aura Scan', subtitle: 'See your energy', icon: 'circle', image: AURA_URL, colors: ['#e6e4ff', '#d8d2fc'] },
+  { title: 'Dream Interpreter', subtitle: 'Decode your dreams', icon: 'moon', image: DREAM_URL, colors: ['#e8e6fb', '#d5d0f2'] },
 ];
 
 const insights = [
@@ -214,7 +230,11 @@ export default function HomeScreen() {
             >
               <LinearGradient colors={tool.colors} style={StyleSheet.absoluteFill} />
               <View style={styles.toolTopline}>
-                <View style={styles.toolIcon}><Feather name={tool.icon} size={25} color="#9a671a" /></View>
+                {tool.image ? (
+                  <Image source={{ uri: tool.image }} style={styles.toolImage} contentFit="contain" />
+                ) : (
+                  <View style={styles.toolIcon}><Feather name={tool.icon} size={25} color="#9a671a" /></View>
+                )}
                 <Feather name="arrow-up-right" size={17} color="#9a671a" />
               </View>
               <Text style={styles.toolTitle}>{tool.title}</Text>
@@ -300,6 +320,7 @@ const styles = StyleSheet.create({
   toolCard: { minHeight: 118, borderRadius: 16, padding: 11, overflow: 'hidden', justifyContent: 'flex-end' },
   toolTopline: { position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   toolIcon: { width: 35, height: 35, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.62)', alignItems: 'center', justifyContent: 'center' },
+  toolImage: { width: 46, height: 46, borderRadius: 14, marginTop: -3, marginLeft: -3 },
   toolTitle: { fontWeight: '600', fontSize: 11, color: '#51372e', lineHeight: 14 },
   toolSubtitle: { fontSize: 8, color: '#876d60', marginTop: 2, lineHeight: 11 },
   offerCard: { marginHorizontal: 15, marginTop: 19, minHeight: 67, borderRadius: 17, borderWidth: 1, borderColor: '#ecdcc1', backgroundColor: '#fff7e7', padding: 11, flexDirection: 'row', alignItems: 'center', gap: 9 },
