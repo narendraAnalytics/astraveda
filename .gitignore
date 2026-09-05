@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+.kotlin/
+.metro-health-check*
+/frontend/ios
+/frontend/android
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# Claude / AI tooling
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Project source-of-truth docs (kept local only, not published)
+/finalview.txt
+/roadmap.txt
+/imagesurl.txt
+
+# Throwaway prototype
+/frontend/samplefolder/
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*

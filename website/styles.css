@@ -1,0 +1,391 @@
+/* AstraVeda landing page — mobile-first only.
+   Palette and type lifted straight from the app's own design tokens
+   (frontend/samplefolder/.../constants/colors.ts) and homescreen.png,
+   so the site reads as the same product, not a separate brand. */
+
+:root{
+  --bg:#fffaf2;
+  --card:#fffdf9;
+  --ink:#3c2924;
+  --ink-dim:#896f62;
+  --ink-soft:#9b7663;
+  --gold:#c18426;
+  --gold-strong:#a2660f;
+  --gold-pale:#fff0d9;
+  --purple:#8f29dd;
+  --purple-2:#a72be6;
+  --secondary:#f8ead9;
+  --accent:#fae0ca;
+  --accent-ink:#7e402b;
+  --border:#f0dac5;
+  --cream-badge:#fff7eb;
+  --page-ground:#f3e6d2;
+}
+
+*{box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  margin:0;
+  background:var(--page-ground);
+  color:var(--ink);
+  font-family:'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{
+  font-family:'Fraunces', Georgia, serif;
+  font-weight:600;
+  line-height:1.14;
+  text-wrap:balance;
+  margin:0;
+}
+.wordmark{
+  font-family:'Cinzel', serif;
+  letter-spacing:0.12em;
+  font-weight:600;
+}
+.eyebrow{
+  font-family:'Manrope', sans-serif;
+  font-weight:700;
+  font-size:0.68rem;
+  letter-spacing:0.14em;
+  text-transform:uppercase;
+}
+p{margin:0; line-height:1.6;}
+a{color:inherit;}
+img,svg{display:block; max-width:100%;}
+button,input{font-family:inherit;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;}
+}
+
+/* Everything lives in one phone-width column — this is a mobile page,
+   not a desktop site that happens to shrink. On a wider viewer the
+   column simply sits centered on the warm page ground. */
+.page{
+  max-width:480px;
+  margin:0 auto;
+  background:var(--bg);
+  min-height:100vh;
+  box-shadow:0 0 60px rgba(60,41,36,0.08);
+  padding-bottom:96px; /* clears the floating tab bar */
+}
+.wrap{padding:0 18px;}
+
+/* ---------- BOTTOM TAB BAR ----------
+   Floating glass pill, not a flush white strip — 2026's "glassmorphism 2.0"
+   applied surgically to one floating element: deep-ink glass, blurred,
+   bright gold accents for the active state. */
+.tabbar{
+  position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
+  width:calc(100% - 28px); max-width:452px; z-index:50;
+  display:flex; align-items:flex-end; justify-content:space-around;
+  background:rgba(42,27,22,0.82);
+  backdrop-filter:blur(18px) saturate(160%);
+  -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:26px;
+  padding:11px 8px;
+  box-shadow:0 16px 34px -14px rgba(30,18,12,0.55);
+}
+.tab{
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  text-decoration:none; color:rgba(255,244,227,0.52); font-size:0.62rem; font-weight:700;
+  padding:6px 12px; border-radius:14px;
+}
+.tab svg{ stroke:currentColor; }
+.tab.active{
+  color:#ffe9b8;
+  background:rgba(255,255,255,0.08);
+}
+.tab-center{ position:relative; top:-20px; padding:0; }
+.tab-center-icon{
+  width:54px; height:54px; border-radius:27px;
+  background:linear-gradient(135deg, var(--gold), var(--gold-strong));
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 22px -6px rgba(240,166,58,0.65), 0 0 0 5px rgba(42,27,22,0.82);
+}
+.tab-center-icon img{
+  width:100%; height:100%; object-fit:cover; border-radius:27px;
+  mix-blend-mode:multiply; /* drops the image's white background into the gold gradient */
+}
+
+/* ---------- NAV ---------- */
+.nav{
+  position:sticky; top:0; z-index:40;
+  background:rgba(255,250,242,0.92);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+}
+.nav .wrap{
+  display:flex; align-items:center; justify-content:space-between;
+  padding-top:12px; padding-bottom:12px; gap:10px;
+}
+.brand{display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--ink);}
+.brand-mark{width:30px; height:30px; border-radius:15px; object-fit:cover;}
+.brand-name{font-size:0.86rem; color:#603f28;}
+.nav-toggle{
+  display:flex; flex-direction:column; justify-content:center; gap:4px;
+  width:34px; height:34px; border:none; background:var(--gold-pale);
+  border-radius:10px; cursor:pointer; padding:0; align-items:center;
+}
+.nav-toggle span{width:15px; height:2px; background:var(--gold-strong); border-radius:2px;}
+.nav-cta{
+  display:inline-flex; align-items:center;
+  background:var(--purple); color:#fff;
+  font-weight:700; font-size:0.72rem;
+  padding:8px 14px; border-radius:999px; text-decoration:none;
+  white-space:nowrap;
+}
+.navlinks{
+  list-style:none; margin:0; padding:14px 18px;
+  display:none; flex-direction:column; gap:2px;
+  border-bottom:1px solid var(--border);
+  background:var(--card);
+}
+.navlinks.open{display:flex;}
+.navlinks a{
+  display:block; padding:10px 4px; font-size:0.92rem; font-weight:600;
+  text-decoration:none; color:var(--ink); border-bottom:1px solid var(--border);
+}
+.navlinks li:last-child a{border-bottom:none;}
+
+/* ---------- HERO ---------- */
+.hero{ padding:14px 0 0; }
+
+.hero-visual{
+  position:relative; border-radius:26px; overflow:hidden;
+  background:#c98142; aspect-ratio:3/4;
+  box-shadow:0 12px 30px -12px rgba(147,85,34,0.4);
+}
+.hero-visual img{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+}
+.hero-visual::after{
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(180deg, rgba(54,30,22,0.03) 0%, rgba(54,30,22,0.08) 50%, rgba(50,25,18,0.75) 100%);
+}
+.hero-visual-copy{
+  position:relative; z-index:1; height:100%;
+  display:flex; flex-direction:column; justify-content:flex-end;
+  padding:20px;
+}
+.hero-visual-copy .quote{
+  font-family:'Fraunces', serif; font-style:italic; font-size:1.05rem;
+  color:#fff8eb; text-shadow:0 2px 6px rgba(71,33,16,0.5); max-width:240px;
+}
+.hero-visual-copy .blessing{
+  margin-top:14px; font-size:0.8rem; color:#fff6e7; font-weight:600;
+}
+
+/* Today's Cosmic Guidance — the app's own insight cards, reused verbatim */
+.guidance{ margin-top:18px; }
+.guidance-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:9px; }
+.guidance-title{ font-family:'Fraunces', serif; font-size:0.92rem; color:#4a2f20; font-weight:600; }
+.guidance-link{ font-size:0.72rem; color:var(--ink-dim); font-weight:600; }
+.insight-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+.insight-card{ border-radius:15px; padding:12px; min-height:96px; display:flex; flex-direction:column; justify-content:space-between; }
+.insight-card--rose{ background:#fce9ee; }
+.insight-card--blue{ background:#eaf2ff; }
+.insight-card--green{ background:#eaf8ec; }
+.insight-card--purple{ background:#f1eaff; }
+.insight-icon{ font-size:1.3rem; line-height:1; }
+.insight-icon.om{ color:#8758ce; font-size:1.5rem; }
+.insight-label{ margin-top:8px; font-size:0.7rem; color:#68473f; font-weight:600; }
+.insight-value{ margin-top:2px; font-size:0.8rem; color:#3e2b27; font-weight:700; line-height:1.25; }
+
+/* Ask AstraVeda — the app's own voice CTA, reused verbatim on the site */
+.voice-bar{
+  margin-top:14px; min-height:64px; border-radius:20px;
+  background:linear-gradient(135deg, var(--purple), var(--purple-2));
+  box-shadow:0 10px 24px -10px rgba(143,41,221,0.55);
+  display:flex; align-items:center; gap:10px; padding:0 14px;
+  text-decoration:none; color:#fff;
+}
+.voice-wave{ display:flex; align-items:center; gap:2px; height:28px; }
+.voice-wave span{
+  width:2px; border-radius:2px; background:rgba(255,255,255,0.7);
+}
+.voice-wave span:nth-child(1){height:11px;}
+.voice-wave span:nth-child(2){height:20px;}
+.voice-wave span:nth-child(3){height:13px;}
+.voice-wave span:nth-child(4){height:25px;}
+.voice-wave span:nth-child(5){height:15px;}
+.voice-mic{
+  width:42px; height:42px; border-radius:21px; flex-shrink:0;
+  border:1.5px solid rgba(255,255,255,0.7);
+  display:flex; align-items:center; justify-content:center;
+}
+.voice-copy{ display:flex; flex-direction:column; flex:1; }
+.voice-copy strong{ font-size:1rem; }
+.voice-copy small{ margin-top:2px; font-size:0.72rem; color:rgba(255,255,255,0.78); }
+
+.hero-kicker{display:flex; align-items:center; gap:8px; margin-top:22px; margin-bottom:12px;}
+.hero-kicker .rule{width:26px; height:1px; background:var(--gold);}
+.hero-kicker .eyebrow{color:var(--gold-strong);}
+.hero h1{font-size:1.6rem; color:#4a2f20;}
+.hero h1 em{font-style:italic; color:var(--purple);}
+.hero-sub{margin-top:12px; font-size:0.92rem; color:var(--ink-dim);}
+
+.hero-ctas{display:flex; gap:10px; margin-top:18px;}
+.btn-primary{
+  flex:1; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  background:linear-gradient(135deg, var(--purple), var(--purple-2));
+  color:#fff; font-weight:700; font-size:0.9rem;
+  padding:13px 16px; border-radius:14px; text-decoration:none; border:none; cursor:pointer;
+  box-shadow:0 10px 24px -10px rgba(143,41,221,0.55);
+}
+.btn-ghost{
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--card); color:var(--ink); font-weight:600; font-size:0.9rem;
+  padding:12px 16px; border-radius:14px; text-decoration:none;
+  border:1px solid var(--border);
+}
+
+.hero-trust{
+  margin-top:20px; display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  text-align:center;
+}
+.hero-trust div{
+  background:var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:10px 6px; font-size:0.68rem; color:var(--ink-dim);
+}
+.hero-trust b{display:block; font-family:'Fraunces', serif; font-size:1rem; color:var(--gold-strong);}
+
+/* ---------- STATS (2x2, like the app's insight grid) ---------- */
+.stats{ padding:26px 0 6px; }
+.stats-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.stat{
+  background:var(--secondary); border-radius:15px; padding:14px;
+}
+.stat b{
+  display:block; font-family:'Fraunces', serif; font-size:1.3rem; color:#603f28;
+}
+.stat span{ font-size:0.72rem; color:var(--ink-dim); }
+
+/* ---------- SECTION SHELL ---------- */
+section.panel{ padding:34px 0; }
+section.panel--tight{ padding-top:0; }
+.section-head{ margin-bottom:18px; }
+.section-head .eyebrow{ color:var(--purple); }
+.section-head h2{ font-size:1.35rem; margin-top:10px; color:#4a2f20; }
+.section-head p{ margin-top:10px; color:var(--ink-dim); font-size:0.88rem; }
+
+/* ---------- FEATURES (matches the app's 3-across tool cards) ---------- */
+.feature-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.feature-card{
+  background:linear-gradient(150deg, var(--card-a), var(--card-b));
+  border-radius:18px; padding:16px 14px;
+}
+/* Gradients lifted from the app's own tool-card colors (samplefolder home screen) */
+.feature-card--kundli{ --card-a:#fff0d9; --card-b:#ffe1be; }
+.feature-card--palm{ --card-a:#f9e7ef; --card-b:#f7d7e2; }
+.feature-card--face{ --card-a:#e3f1fb; --card-b:#cfe5f5; }
+.feature-card--vastu{ --card-a:#e8f5dc; --card-b:#d9edc8; }
+.feature-card--aura{ --card-a:#e6e4ff; --card-b:#d8d2fc; }
+.feature-card--dream{ --card-a:#efe1f5; --card-b:#e5d2ef; }
+.feature-icon{
+  width:38px; height:38px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,0.68);
+  color:var(--feature-ink, #9a671a);
+  margin-bottom:10px;
+}
+.feature-icon--kundli{ --feature-ink:#a2660f; }
+.feature-icon--palm{ --feature-ink:#a1385a; }
+.feature-icon--face{ --feature-ink:#2e6aab; }
+.feature-icon--vastu{ --feature-ink:#4f7d2f; }
+.feature-icon--aura{ --feature-ink:#5b3fa0; }
+.feature-icon--dream{ --feature-ink:#7a4a92; }
+.feature-card h3{ font-size:0.94rem; color:#4a2f20; }
+.feature-card p{ margin-top:5px; font-size:0.76rem; color:var(--ink-dim); line-height:1.45; }
+.feature-credit{
+  display:inline-block; margin-top:9px; font-size:0.62rem; font-weight:700;
+  letter-spacing:0.03em; color:#7e402b; text-transform:uppercase;
+}
+
+/* ---------- HOW IT WORKS (vertical timeline, mobile-native) ---------- */
+.steps{ display:flex; flex-direction:column; gap:0; }
+.step{
+  position:relative; padding:0 0 20px 34px; border-left:2px solid var(--border);
+}
+.step:last-child{ padding-bottom:2px; }
+.step-num{
+  position:absolute; left:-15px; top:-2px;
+  width:28px; height:28px; border-radius:50%;
+  background:var(--purple); color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Fraunces', serif; font-size:0.82rem; font-weight:600;
+}
+.step h3{ font-size:0.96rem; color:#4a2f20; }
+.step p{ margin-top:5px; font-size:0.82rem; color:var(--ink-dim); }
+
+/* ---------- LIVE + PUJA banners (stacked, never side-by-side) ---------- */
+.banner-pair{ display:flex; flex-direction:column; gap:12px; }
+.banner{
+  border-radius:20px; padding:18px; position:relative; overflow:hidden; color:#fff;
+}
+.banner.live{ background:linear-gradient(160deg, #7a2fae, #3c1a58); }
+.banner.puja{ background:linear-gradient(160deg, #c4682f, #7a3a16); }
+.banner .eyebrow{ color:rgba(255,255,255,0.78); }
+.banner h3{ margin-top:8px; font-size:1.05rem; color:#fff; }
+.banner p{ margin-top:8px; color:rgba(255,255,255,0.82); font-size:0.82rem; }
+.banner .price{ margin-top:14px; display:flex; align-items:baseline; gap:6px; }
+.banner .price b{ font-family:'Fraunces', serif; font-size:1.6rem; }
+.banner .price span{ font-size:0.7rem; color:rgba(255,255,255,0.78); }
+.banner .tierlist{ margin-top:14px; display:flex; flex-direction:column; gap:7px; }
+.banner .tier{ display:flex; justify-content:space-between; font-size:0.76rem; border-top:1px dashed rgba(255,255,255,0.28); padding-top:7px; }
+.banner .tier b{ font-weight:700; }
+
+/* ---------- VALUES ---------- */
+.values{ display:flex; flex-direction:column; gap:14px; }
+.value{ display:flex; gap:12px; align-items:flex-start; }
+.value .glyph{
+  flex-shrink:0; width:34px; height:34px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--accent); color:var(--accent-ink); font-size:1.1rem;
+}
+.value h3{ font-size:0.9rem; color:#4a2f20; }
+.value p{ margin-top:4px; font-size:0.78rem; color:var(--ink-dim); }
+
+/* ---------- FINAL CTA ---------- */
+.final{ background:#3c2924; color:#fff; padding:34px 0 30px; }
+.final-inner{ text-align:center; }
+.final h2{ font-size:1.5rem; color:#fff8eb; }
+.eyebrow--gold{ color:var(--gold); }
+.final-title{ margin-top:14px; }
+.final p{ margin-top:10px; color:rgba(255,248,235,0.72); font-size:0.86rem; }
+
+.waitlist{ display:flex; gap:8px; margin-top:22px; }
+.waitlist input{
+  flex:1; min-width:0; border-radius:12px; border:1px solid rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.08); color:#fff; padding:12px 14px; font-size:0.85rem;
+}
+.waitlist input::placeholder{ color:rgba(255,255,255,0.5); }
+.waitlist button{
+  background:var(--gold); color:#3a2409; border:none; border-radius:12px;
+  padding:12px 16px; font-weight:700; font-size:0.85rem; cursor:pointer;
+}
+.waitlist-note{ margin-top:12px; font-size:0.8rem; color:#f0c979; }
+
+.storebadges{ display:flex; flex-direction:column; gap:10px; margin-top:22px; }
+.storebadge{
+  display:flex; align-items:center; gap:10px; text-decoration:none;
+  border:1px solid rgba(255,255,255,0.18); border-radius:14px; padding:11px 14px;
+  color:#fff; background:rgba(255,255,255,0.05);
+}
+.storebadge .lines{ display:flex; flex-direction:column; text-align:left; flex:1; }
+.storebadge .lines small{ font-size:0.6rem; color:rgba(255,255,255,0.6); }
+.storebadge .lines strong{ font-size:0.84rem; }
+.storebadge .soon{
+  font-size:0.58rem; letter-spacing:0.06em; text-transform:uppercase;
+  background:var(--gold); color:#3a2409; padding:3px 8px; border-radius:999px; font-weight:800;
+}
+
+/* ---------- FOOTER ---------- */
+footer{ background:#2e201b; padding:22px 0 26px; }
+footer .wrap{ display:flex; flex-direction:column; gap:14px; color:rgba(255,255,255,0.55); font-size:0.72rem; }
+footer a{ text-decoration:none; color:rgba(255,255,255,0.55); }
+.footlinks{ display:flex; gap:16px; list-style:none; padding:0; margin:0; flex-wrap:wrap; }
+.footer-brand{ color:var(--gold); font-size:0.85rem; }
