@@ -7,3 +7,28 @@
   --font-rounded: 'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif;
   --font-serif: Georgia, 'Times New Roman', serif;
 }
+
+/*
+ * Web preview only: the Vercel/Coolify web export is a stakeholder preview of a
+ * native mobile app. On real phones it renders full-bleed; on wider screens
+ * (laptops) it's boxed into a centered phone-sized frame so the team sees the
+ * mobile UI, not a stretched-out desktop page. Has no effect on iOS/Android.
+ */
+@media (min-width: 520px) {
+  html,
+  body {
+    background: #17121f;
+  }
+
+  body > #root,
+  body > div:first-child {
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    overflow: hidden;
+    background: #fffaf2;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 24px 70px -16px rgba(0, 0, 0, 0.55);
+  }
+}
