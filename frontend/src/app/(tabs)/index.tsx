@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { ParseKeys } from 'i18next';
 import {
   AccessibilityInfo,
   Alert,
@@ -27,6 +29,8 @@ import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUser } from '@clerk/expo';
+
+import { LanguageSheet } from '../../components/language-sheet';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -107,10 +111,12 @@ const MOTION = {
 } as const;
 
 type Motion = keyof typeof MOTION;
+type TransKey = ParseKeys;
 
 type Tool = {
-  title: string;
-  subtitle: string;
+  key: string;
+  titleKey: TransKey;
+  subtitleKey: TransKey;
   icon: keyof typeof Feather.glyphMap;
   image?: string;
   anim?: Motion;
@@ -118,12 +124,12 @@ type Tool = {
 };
 
 const tools: Tool[] = [
-  { title: 'My Kundli', subtitle: 'Explore your cosmos', icon: 'star', image: KUNDALI_URL, anim: 'spin', colors: ['#fff0d9', '#ffe1be'] },
-  { title: 'Palm Reading', subtitle: 'Your hands, your story', icon: 'heart', image: PALM_URL, anim: 'wave', colors: ['#f9e7ef', '#f7d7e2'] },
-  { title: 'Face Reading', subtitle: 'Reveal your nature', icon: 'smile', image: FACE_URL, anim: 'breathe', colors: ['#fdefe1', '#f8ddce'] },
-  { title: 'Vastu AI', subtitle: 'Harmonize your space', icon: 'home', image: VASTU_URL, anim: 'float', colors: ['#e8f5dc', '#d9edc8'] },
-  { title: 'Aura Scan', subtitle: 'See your energy', icon: 'circle', image: AURA_URL, anim: 'pulse', colors: ['#e6e4ff', '#d8d2fc'] },
-  { title: 'Dream Interpreter', subtitle: 'Decode your dreams', icon: 'moon', image: DREAM_URL, anim: 'drift', colors: ['#e8e6fb', '#d5d0f2'] },
+  { key: 'kundli', titleKey: 'tools.kundli', subtitleKey: 'tools.kundliSub', icon: 'star', image: KUNDALI_URL, anim: 'spin', colors: ['#fff0d9', '#ffe1be'] },
+  { key: 'palm', titleKey: 'tools.palm', subtitleKey: 'tools.palmSub', icon: 'heart', image: PALM_URL, anim: 'wave', colors: ['#f9e7ef', '#f7d7e2'] },
+  { key: 'face', titleKey: 'tools.face', subtitleKey: 'tools.faceSub', icon: 'smile', image: FACE_URL, anim: 'breathe', colors: ['#fdefe1', '#f8ddce'] },
+  { key: 'vastu', titleKey: 'tools.vastu', subtitleKey: 'tools.vastuSub', icon: 'home', image: VASTU_URL, anim: 'float', colors: ['#e8f5dc', '#d9edc8'] },
+  { key: 'aura', titleKey: 'tools.aura', subtitleKey: 'tools.auraSub', icon: 'circle', image: AURA_URL, anim: 'pulse', colors: ['#e6e4ff', '#d8d2fc'] },
+  { key: 'dream', titleKey: 'tools.dream', subtitleKey: 'tools.dreamSub', icon: 'moon', image: DREAM_URL, anim: 'drift', colors: ['#e8e6fb', '#d5d0f2'] },
 ];
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
@@ -263,15 +269,17 @@ function HeroCarousel() {
 }
 
 const insights = [
-  { label: 'Lucky Color', value: 'Saffron Gold', icon: 'droplet', tint: '#d95f84', bg: '#fce9ee' },
-  { label: 'Rahu Kalam', value: '10:30 AM\n– 12:00 PM', icon: 'clock', tint: '#4d8de8', bg: '#eaf2ff' },
-  { label: 'Best Time', value: '2:15 PM\n– 3:45 PM', icon: 'sun', tint: '#39a56a', bg: '#eaf8ec' },
-  { label: "Today's Mantra", value: '"Om Gam\nGanapataye Namah"', icon: 'om', tint: '#8758ce', bg: '#f1eaff' },
+  { labelKey: 'insights.luckyColor', value: 'Saffron Gold', icon: 'droplet', tint: '#d95f84', bg: '#fce9ee' },
+  { labelKey: 'insights.rahuKalam', value: '10:30 AM\n– 12:00 PM', icon: 'clock', tint: '#4d8de8', bg: '#eaf2ff' },
+  { labelKey: 'insights.bestTime', value: '2:15 PM\n– 3:45 PM', icon: 'sun', tint: '#39a56a', bg: '#eaf8ec' },
+  { labelKey: 'insights.todaysMantra', value: '"Om Gam\nGanapataye Namah"', icon: 'om', tint: '#8758ce', bg: '#f1eaff' },
 ] as const;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [showMorning, setShowMorning] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
   const topInset = Platform.OS === 'web' ? 24 : insets.top;
   const bottomInset = Platform.OS === 'web' ? 34 : 12;
   const heroHeight = Math.max(300, Math.min(360, screenWidth * 0.84));
@@ -286,23 +294,27 @@ export default function HomeScreen() {
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
     const timeGreeting =
-      hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-    return firstName ? `Welcome, ${firstName}` : timeGreeting;
-  }, [firstName]);
+      hour < 12
+        ? t('home.greetingMorning')
+        : hour < 17
+          ? t('home.greetingAfternoon')
+          : t('home.greetingEvening');
+    return firstName ? t('home.welcome', { name: firstName }) : timeGreeting;
+  }, [firstName, t]);
 
   const askAstraVeda = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('AstraVeda is listening', 'Speak your question and your spiritual guide will respond.', [
-      { text: 'Not now', style: 'cancel' },
-      { text: 'Begin voice guidance', onPress: () => Alert.alert('Voice guidance', 'Your microphone space is ready for the next step.') },
+    Alert.alert(t('home.askListeningTitle'), t('home.askListeningBody'), [
+      { text: t('common.notNow'), style: 'cancel' },
+      { text: t('home.beginVoice'), onPress: () => Alert.alert(t('home.beginVoice'), 'Your microphone space is ready for the next step.') },
     ]);
   };
 
   const openTool = async (tool: Tool) => {
     await Haptics.selectionAsync();
-    Alert.alert(tool.title, `${tool.subtitle}. This reading will be ready when you add your details.`, [
-      { text: 'Keep exploring', style: 'cancel' },
-      { text: 'Start reading', onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },
+    Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [
+      { text: t('common.keepExploring'), style: 'cancel' },
+      { text: t('tools.startReading'), onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },
     ]);
   };
 
@@ -314,9 +326,9 @@ export default function HomeScreen() {
       >
         <View style={styles.header}>
           <Pressable
-            accessibilityLabel="Open menu"
+            accessibilityLabel={t('menu.language')}
             style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-            onPress={() => Alert.alert('AstraVeda menu', 'Your spiritual home, always within reach.')}
+            onPress={() => setShowLanguage(true)}
           >
             <Feather name="menu" size={22} color="#3c2924" />
           </Pressable>
@@ -324,7 +336,7 @@ export default function HomeScreen() {
             <Image source={{ uri: LOGO_URL }} style={styles.logo} contentFit="cover" />
             <View>
               <Text style={styles.brandName}>ASTRAVEDA</Text>
-              <Text style={styles.brandTagline}>Ancient wisdom · Brighter tomorrow</Text>
+              <Text style={styles.brandTagline}>{t('home.brandTagline')}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -332,7 +344,7 @@ export default function HomeScreen() {
               <View style={styles.coin}>
                 <Ionicons name="sparkles" size={12} color="#fff8e7" />
               </View>
-              <Text style={styles.creditText}>2 Free{'\n'}Credits</Text>
+              <Text style={styles.creditText}>{t('home.freeCredits', { count: 2 })}</Text>
             </View>
             <Pressable
               accessibilityLabel="Notifications"
@@ -352,7 +364,7 @@ export default function HomeScreen() {
         <View style={styles.greetingRow}>
           <View>
             <Text style={styles.greeting}>{greetingText} <Text style={styles.sparkle}>✦</Text></Text>
-            <Text style={styles.greetingSub}>Your cosmic guidance for today</Text>
+            <Text style={styles.greetingSub}>{t('home.greetingSub')}</Text>
           </View>
           <Text style={styles.today}>{today}</Text>
         </View>
@@ -363,9 +375,9 @@ export default function HomeScreen() {
         >
           <View style={styles.sunCircle}><Ionicons name="sunny-outline" size={26} color="#c37b21" /></View>
           <View style={styles.morningCopy}>
-            <Text style={styles.morningTitle}>May Lord Ganesha remove all obstacles</Text>
-            <Text style={styles.morningBody}>and fill your day with wisdom and joy.</Text>
-            {showMorning && <Text style={styles.morningReveal}>Pause, breathe, and trust the path opening before you.</Text>}
+            <Text style={styles.morningTitle}>{t('home.blessingTitle')}</Text>
+            <Text style={styles.morningBody}>{t('home.blessingBody')}</Text>
+            {showMorning && <Text style={styles.morningReveal}>{t('home.blessingReveal')}</Text>}
           </View>
           <Feather name={showMorning ? 'chevron-up' : 'chevron-down'} size={18} color="#a77a59" />
         </Pressable>
@@ -373,19 +385,19 @@ export default function HomeScreen() {
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleWrap}>
             <Feather name="sun" size={17} color="#aa6a28" />
-            <Text style={styles.sectionTitle}>Today&apos;s Cosmic Guidance</Text>
+            <Text style={styles.sectionTitle}>{t('home.cosmicGuidance')}</Text>
           </View>
-          <Pressable onPress={() => Alert.alert('Your cosmic guidance', 'A fuller daily reading will unfold as you explore AstraVeda.')}>
-            <Text style={styles.viewDetails}>View Details <Feather name="arrow-right" size={13} /></Text>
+          <Pressable onPress={() => Alert.alert(t('home.cosmicGuidance'), 'A fuller daily reading will unfold as you explore AstraVeda.')}>
+            <Text style={styles.viewDetails}>{t('common.viewDetails')} <Feather name="arrow-right" size={13} /></Text>
           </Pressable>
         </View>
 
         <View style={styles.insightGrid}>
           {insights.map((insight) => (
             <Pressable
-              key={insight.label}
+              key={insight.labelKey}
               style={({ pressed }) => [styles.insightCard, { backgroundColor: insight.bg }, pressed && styles.pressedCard]}
-              onPress={() => Alert.alert(insight.label, insight.value.replace('\n', ' '))}
+              onPress={() => Alert.alert(t(insight.labelKey), insight.value.replace('\n', ' '))}
             >
               <View style={[styles.insightIcon, { backgroundColor: `${insight.tint}18` }]}>
                 {insight.icon === 'om' ? (
@@ -394,7 +406,7 @@ export default function HomeScreen() {
                   <Feather name={insight.icon as keyof typeof Feather.glyphMap} size={22} color={insight.tint} />
                 )}
               </View>
-              <Text style={styles.insightLabel}>{insight.label}</Text>
+              <Text style={styles.insightLabel}>{t(insight.labelKey)}</Text>
               <Text style={styles.insightValue}>{insight.value}</Text>
             </Pressable>
           ))}
@@ -413,17 +425,17 @@ export default function HomeScreen() {
           </View>
           <View style={styles.askMic}><Feather name="mic" size={24} color="#fff" /></View>
           <View style={styles.askCopy}>
-            <Text style={styles.askTitle}>Ask AstraVeda</Text>
-            <Text style={styles.askSub}>Tap to speak with your AI spiritual guide</Text>
+            <Text style={styles.askTitle}>{t('home.askTitle')}</Text>
+            <Text style={styles.askSub}>{t('home.askSub')}</Text>
           </View>
           <Feather name="arrow-right" size={24} color="#fff6ff" />
         </Pressable>
 
-        <Text style={styles.exploreHeading}>Explore your inner universe</Text>
+        <Text style={styles.exploreHeading}>{t('home.exploreHeading')}</Text>
         <View style={styles.toolsGrid}>
           {tools.map((tool) => (
             <Pressable
-              key={tool.title}
+              key={tool.key}
               style={({ pressed }) => [styles.toolCard, { width: TOOL_CARD_WIDTH }, pressed && styles.pressedCard]}
               onPress={() => openTool(tool)}
             >
@@ -440,8 +452,8 @@ export default function HomeScreen() {
                 )}
                 <Feather name="arrow-up-right" size={17} color="#9a671a" />
               </View>
-              <Text style={styles.toolTitle}>{tool.title}</Text>
-              <Text style={styles.toolSubtitle}>{tool.subtitle}</Text>
+              <Text style={styles.toolTitle}>{t(tool.titleKey)}</Text>
+              <Text style={styles.toolSubtitle}>{t(tool.subtitleKey)}</Text>
             </Pressable>
           ))}
         </View>
@@ -449,14 +461,16 @@ export default function HomeScreen() {
         <View style={styles.offerCard}>
           <View style={styles.offerIcon}><Ionicons name="gift-outline" size={28} color="#b66d1e" /></View>
           <View style={styles.offerCopy}>
-            <Text style={styles.offerTitle}>Daily blessings await</Text>
-            <Text style={styles.offerSub}>Use your 2 free credits and explore divine insights.</Text>
+            <Text style={styles.offerTitle}>{t('home.offerTitle')}</Text>
+            <Text style={styles.offerSub}>{t('home.offerSub')}</Text>
           </View>
-          <Pressable onPress={() => Alert.alert('Your free credits', 'Two complimentary readings are waiting for you.')}>
-            <Text style={styles.offerAction}>View offers <Feather name="arrow-right" size={13} /></Text>
+          <Pressable onPress={() => Alert.alert(t('home.offerTitle'), 'Two complimentary readings are waiting for you.')}>
+            <Text style={styles.offerAction}>{t('home.viewOffers')} <Feather name="arrow-right" size={13} /></Text>
           </Pressable>
         </View>
       </ScrollView>
+
+      <LanguageSheet visible={showLanguage} onClose={() => setShowLanguage(false)} />
     </View>
   );
 }

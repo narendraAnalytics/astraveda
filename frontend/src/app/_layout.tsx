@@ -1,7 +1,12 @@
+import { useEffect, useState } from 'react';
 import { ClerkProvider } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { I18nextProvider } from 'react-i18next';
+
+import { i18n, initI18n } from '../i18n';
+import { useSyncUser } from '../hooks/use-sync-user';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -13,13 +18,32 @@ if (!publishableKey) {
   );
 }
 
+function AppShell() {
+  // Keeps the Neon users table in sync with Clerk for the signed-in user.
+  useSyncUser();
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+    </Stack>
+  );
+}
+
 export default function RootLayout() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    initI18n().finally(() => setReady(true));
+  }, []);
+
+  if (!ready) return null;
+
   return (
     <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
-      </Stack>
+      <I18nextProvider i18n={i18n}>
+        <AppShell />
+      </I18nextProvider>
     </ClerkProvider>
   );
 }

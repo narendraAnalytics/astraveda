@@ -1,0 +1,24 @@
+[project]
+name = "astraveda-backend"
+version = "0.1.0"
+description = "AstraVeda API — Clerk auth + Neon user sync + Sarvam translation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.6",
+    "uvicorn[standard]>=0.34.0",
+    "httpx>=0.28.1",
+    "sqlmodel>=0.0.22",
+    "psycopg[binary]>=3.2.3",
+    "pydantic-settings>=2.7.1",
+    "python-dotenv>=1.0.1",
+    "pyjwt[crypto]>=2.10.1",
+    "svix>=1.42.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3.4"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

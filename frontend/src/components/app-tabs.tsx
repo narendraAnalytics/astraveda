@@ -3,6 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   FadeIn,
@@ -34,8 +35,16 @@ type TabButtonProps = {
   route?: string;
 };
 
+const TAB_KEY: Record<string, 'tabs.home' | 'tabs.astrology' | 'tabs.puja' | 'tabs.profile'> = {
+  Home: 'tabs.home',
+  Astrology: 'tabs.astrology',
+  Puja: 'tabs.puja',
+  Profile: 'tabs.profile',
+};
+
 function TabButton({ onPress, label, route }: TabButtonProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const focused = pathname === route;
   const progress = useSharedValue(focused ? 1 : 0);
 
@@ -64,7 +73,7 @@ function TabButton({ onPress, label, route }: TabButtonProps) {
             style={styles.label}
             numberOfLines={1}
           >
-            {label}
+            {t(TAB_KEY[label ?? ''])}
           </Animated.Text>
         )}
       </View>

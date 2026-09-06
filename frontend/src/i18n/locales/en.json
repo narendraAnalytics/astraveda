@@ -1,0 +1,86 @@
+{
+  "common": {
+    "notNow": "Not now",
+    "keepExploring": "Keep exploring",
+    "cancel": "Cancel",
+    "viewDetails": "View Details"
+  },
+  "language": {
+    "title": "Choose your language",
+    "subtitle": "The whole app updates instantly",
+    "current": "Current language"
+  },
+  "menu": {
+    "title": "AstraVeda menu",
+    "subtitle": "Your spiritual home, always within reach.",
+    "language": "Language"
+  },
+  "tabs": {
+    "home": "Home",
+    "astrology": "Astrology",
+    "ask": "Ask",
+    "puja": "Puja",
+    "profile": "Profile"
+  },
+  "home": {
+    "brandTagline": "Ancient wisdom · Brighter tomorrow",
+    "freeCredits": "{{count}} Free Credits",
+    "greetingMorning": "Good Morning",
+    "greetingAfternoon": "Good Afternoon",
+    "greetingEvening": "Good Evening",
+    "welcome": "Welcome, {{name}}",
+    "greetingSub": "Your cosmic guidance for today",
+    "blessingTitle": "May Lord Ganesha remove all obstacles",
+    "blessingBody": "and fill your day with wisdom and joy.",
+    "blessingReveal": "Pause, breathe, and trust the path opening before you.",
+    "cosmicGuidance": "Today's Cosmic Guidance",
+    "askTitle": "Ask AstraVeda",
+    "askSub": "Tap to speak with your AI spiritual guide",
+    "askListeningTitle": "AstraVeda is listening",
+    "askListeningBody": "Speak your question and your spiritual guide will respond.",
+    "beginVoice": "Begin voice guidance",
+    "exploreHeading": "Explore your inner universe",
+    "offerTitle": "Daily blessings await",
+    "offerSub": "Use your 2 free credits and explore divine insights.",
+    "viewOffers": "View offers"
+  },
+  "insights": {
+    "luckyColor": "Lucky Color",
+    "rahuKalam": "Rahu Kalam",
+    "bestTime": "Best Time",
+    "todaysMantra": "Today's Mantra"
+  },
+  "tools": {
+    "kundli": "My Kundli",
+    "kundliSub": "Explore your cosmos",
+    "palm": "Palm Reading",
+    "palmSub": "Your hands, your story",
+    "face": "Face Reading",
+    "faceSub": "Reveal your nature",
+    "vastu": "Vastu AI",
+    "vastuSub": "Harmonize your space",
+    "aura": "Aura Scan",
+    "auraSub": "See your energy",
+    "dream": "Dream Interpreter",
+    "dreamSub": "Decode your dreams",
+    "startReading": "Start reading"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "continueWithGoogle": "Continue with Google",
+    "emailPlaceholder": "you@example.com",
+    "sendCode": "Send code",
+    "enterCode": "Enter the 6-digit code",
+    "verify": "Verify",
+    "chooseUsername": "Choose a username",
+    "continue": "Continue"
+  },
+  "profile": {
+    "guestTitle": "Sign in to save your journey",
+    "guestSub": "Your readings, credits and consultations, all in one place.",
+    "credits": "Credits",
+    "wallet": "Wallet",
+    "history": "History"
+  }
+}
