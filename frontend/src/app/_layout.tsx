@@ -1,35 +1,25 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { ClerkProvider } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
+import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { NavigationBar } from 'expo-navigation-bar';
-import { useEffect } from 'react';
-import { AppState, Platform, useColorScheme } from 'react-native';
-
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 
 SplashScreen.preventAutoHideAsync();
 
-function hideAndroidNavBar() {
-  if (Platform.OS !== 'android') return;
-  NavigationBar.setHidden(true);
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+
+if (!publishableKey) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY. Set it in frontend/.env before starting the app.',
+  );
 }
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
-  useEffect(() => {
-    hideAndroidNavBar();
-    // Android reveals the bar on swipe-up; re-hide when the app regains focus.
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') hideAndroidNavBar();
-    });
-    return () => sub.remove();
-  }, []);
-
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <ClerkProvider publishableKey={publishableKey!} tokenCache={tokenCache}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+      </Stack>
+    </ClerkProvider>
   );
 }

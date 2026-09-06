@@ -26,6 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUser } from '@clerk/expo';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -280,6 +281,15 @@ export default function HomeScreen() {
     return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
   }, []);
 
+  const { user } = useUser();
+  const firstName = user?.firstName ?? user?.username ?? null;
+  const greetingText = useMemo(() => {
+    const hour = new Date().getHours();
+    const timeGreeting =
+      hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    return firstName ? `Welcome, ${firstName}` : timeGreeting;
+  }, [firstName]);
+
   const askAstraVeda = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert('AstraVeda is listening', 'Speak your question and your spiritual guide will respond.', [
@@ -341,7 +351,7 @@ export default function HomeScreen() {
 
         <View style={styles.greetingRow}>
           <View>
-            <Text style={styles.greeting}>Good Morning <Text style={styles.sparkle}>✦</Text></Text>
+            <Text style={styles.greeting}>{greetingText} <Text style={styles.sparkle}>✦</Text></Text>
             <Text style={styles.greetingSub}>Your cosmic guidance for today</Text>
           </View>
           <Text style={styles.today}>{today}</Text>

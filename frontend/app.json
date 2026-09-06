@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#fffaf2",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -42,9 +42,54 @@
         }
       ],
       "@clerk/expo",
+      "@clerk/expo-google-signin",
       "expo-secure-store",
       "expo-localization",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "AstraVeda uses the camera for palmistry, face reading and Vastu scans.",
+          "microphonePermission": "AstraVeda uses the microphone for voice guidance in Ask AstraVeda.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "AstraVeda needs access to your photos so you can upload palm and face images for readings."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "AstraVeda uses your location to detect your birth place and align Vastu directions."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "AstraVeda uses the microphone so you can speak your questions in Ask AstraVeda."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#8f29dd"
+        }
+      ],
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      "@sentry/react-native",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -54,7 +99,8 @@
       "router": {},
       "eas": {
         "projectId": "d53f4651-a0d3-44ac-a53a-cc4134adcc90"
-      }
+      },
+      "EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID": "431460312514-63s4qekjv0m8bc5n6alj0ainbpa8hsl8.apps.googleusercontent.com"
     },
     "owner": "saasaideveloper",
     "runtimeVersion": {
