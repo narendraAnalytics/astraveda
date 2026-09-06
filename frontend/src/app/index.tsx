@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  AccessibilityInfo,
   Alert,
   Dimensions,
   Platform,
@@ -10,6 +11,17 @@ import {
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  cancelAnimation,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -25,6 +37,46 @@ const TOOL_CARD_WIDTH =
 
 const LOGO_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600768/logo_mmxfny.png';
 const BANNER_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600814/bannerimage_hgtcjz.png';
+const KRISHNA_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788673168/loardkrishna_bxkvt7.png';
+const VYASA_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788674602/vedavyasa_oxcjft.png';
+
+// Hero slideshow: cross-fade + slow Ken Burns zoom between deities, each with its
+// own devotional copy. Auto-advances; freezes on slide 0 when Reduce Motion is on.
+// `bottomCaption` renders script/mantra/blessing centred along the bottom (used
+// when the artwork fills the frame) instead of the left-column layout.
+type HeroSlide = {
+  image: string;
+  script: string;
+  sanskrit: string;
+  blessing: string;
+  bottomCaption?: boolean;
+};
+
+const heroSlides: HeroSlide[] = [
+  {
+    image: BANNER_URL,
+    script: 'Good beginnings\nremove all obstacles',
+    sanskrit: '|| Shri\nGaneshaya\nNamah ||',
+    blessing: 'Divine guidance, always with you',
+  },
+  {
+    image: KRISHNA_URL,
+    script: 'ତୁମର ହୃଦୟକୁ ଦିବ୍ୟ ସଙ୍ଗୀତର ଅନୁସରଣ କରିବାକୁ ଦିଅ',
+    sanskrit: '|| ଶ୍ରୀ କୃଷ୍ଣାୟ ନମଃ ||',
+    blessing: 'ସାହସ ଏବଂ ପ୍ରେମର ସହିତ ତୁମର ପଥରେ ଆଗକୁ ବଢ଼',
+    bottomCaption: true,
+  },
+  {
+    image: VYASA_URL,
+    script: 'मन को शांत करो, भीतर के सत्य को सुनो',
+    sanskrit: 'ॐ नमः शिवाय',
+    blessing: 'ज्ञान और शांति सदा तुम्हारे साथ रहे',
+    bottomCaption: true,
+  },
+];
+
+const HERO_INTERVAL = 5200;
+const HERO_FADE = 850;
 
 // Cloudinary delivers these source PNGs at 1-3 MB / 1200px+. Resize + auto-format
 // at the CDN so expo-image gets a small asset it can reliably decode into a chip.
@@ -41,22 +93,173 @@ const AURA_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v17
 const DREAM_URL =
   'https://res.cloudinary.com/dkqbzwicr/image/upload/e_trim:20,w_180,c_fit/v1788628611/dreamintrupter_tmbxvi.png';
 
+// Subtle, always-on ambient motion for each tool's artwork chip. All transforms
+// run on the UI thread via Reanimated — no JS bridge cost, no layout shift (the
+// JS-computed TOOL_CARD_WIDTH is untouched). Frozen when Reduce Motion is on.
+const MOTION = {
+  spin: { duration: 9000, reverse: false, easing: Easing.linear },
+  wave: { duration: 1700, reverse: true, easing: Easing.inOut(Easing.ease) },
+  breathe: { duration: 2600, reverse: true, easing: Easing.inOut(Easing.ease) },
+  float: { duration: 2400, reverse: true, easing: Easing.inOut(Easing.ease) },
+  pulse: { duration: 1900, reverse: true, easing: Easing.inOut(Easing.ease) },
+  drift: { duration: 3400, reverse: true, easing: Easing.inOut(Easing.ease) },
+} as const;
+
+type Motion = keyof typeof MOTION;
+
 type Tool = {
   title: string;
   subtitle: string;
   icon: keyof typeof Feather.glyphMap;
   image?: string;
+  anim?: Motion;
   colors: readonly [string, string];
 };
 
 const tools: Tool[] = [
-  { title: 'My Kundli', subtitle: 'Explore your cosmos', icon: 'star', image: KUNDALI_URL, colors: ['#fff0d9', '#ffe1be'] },
-  { title: 'Palm Reading', subtitle: 'Your hands, your story', icon: 'heart', image: PALM_URL, colors: ['#f9e7ef', '#f7d7e2'] },
-  { title: 'Face Reading', subtitle: 'Reveal your nature', icon: 'smile', image: FACE_URL, colors: ['#fdefe1', '#f8ddce'] },
-  { title: 'Vastu AI', subtitle: 'Harmonize your space', icon: 'home', image: VASTU_URL, colors: ['#e8f5dc', '#d9edc8'] },
-  { title: 'Aura Scan', subtitle: 'See your energy', icon: 'circle', image: AURA_URL, colors: ['#e6e4ff', '#d8d2fc'] },
-  { title: 'Dream Interpreter', subtitle: 'Decode your dreams', icon: 'moon', image: DREAM_URL, colors: ['#e8e6fb', '#d5d0f2'] },
+  { title: 'My Kundli', subtitle: 'Explore your cosmos', icon: 'star', image: KUNDALI_URL, anim: 'spin', colors: ['#fff0d9', '#ffe1be'] },
+  { title: 'Palm Reading', subtitle: 'Your hands, your story', icon: 'heart', image: PALM_URL, anim: 'wave', colors: ['#f9e7ef', '#f7d7e2'] },
+  { title: 'Face Reading', subtitle: 'Reveal your nature', icon: 'smile', image: FACE_URL, anim: 'breathe', colors: ['#fdefe1', '#f8ddce'] },
+  { title: 'Vastu AI', subtitle: 'Harmonize your space', icon: 'home', image: VASTU_URL, anim: 'float', colors: ['#e8f5dc', '#d9edc8'] },
+  { title: 'Aura Scan', subtitle: 'See your energy', icon: 'circle', image: AURA_URL, anim: 'pulse', colors: ['#e6e4ff', '#d8d2fc'] },
+  { title: 'Dream Interpreter', subtitle: 'Decode your dreams', icon: 'moon', image: DREAM_URL, anim: 'drift', colors: ['#e8e6fb', '#d5d0f2'] },
 ];
+
+const AnimatedImage = Animated.createAnimatedComponent(Image);
+
+function useReduceMotion() {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((value) => {
+      if (mounted) setReduceMotion(value);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
+  return reduceMotion;
+}
+
+function AnimatedToolImage({ uri, motion }: { uri: string; motion: Motion }) {
+  const reduceMotion = useReduceMotion();
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(progress);
+      progress.value = 0;
+      return;
+    }
+    const { duration, reverse, easing } = MOTION[motion];
+    progress.value = 0;
+    progress.value = withRepeat(withTiming(1, { duration, easing }), -1, reverse);
+    return () => cancelAnimation(progress);
+  }, [reduceMotion, motion, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    const p = progress.value;
+    switch (motion) {
+      case 'spin':
+        return { transform: [{ rotateZ: `${p * 360}deg` }] };
+      case 'wave':
+        return { transform: [{ rotateZ: `${interpolate(p, [0, 1], [-7, 7])}deg` }] };
+      case 'breathe':
+        return { transform: [{ scale: interpolate(p, [0, 1], [1, 1.06]) }] };
+      case 'float':
+        return { transform: [{ translateY: interpolate(p, [0, 1], [2, -3]) }] };
+      case 'pulse':
+        return {
+          opacity: interpolate(p, [0, 1], [0.72, 1]),
+          transform: [{ scale: interpolate(p, [0, 1], [0.94, 1.05]) }],
+        };
+      case 'drift':
+        return { transform: [{ rotateZ: `${interpolate(p, [0, 1], [-10, 10])}deg` }] };
+      default:
+        return {};
+    }
+  });
+
+  return <AnimatedImage source={{ uri }} style={[styles.toolImage, animatedStyle]} contentFit="contain" />;
+}
+
+function HeroSlideImage({ uri, animate }: { uri: string; animate: boolean }) {
+  const zoom = useSharedValue(0);
+
+  useEffect(() => {
+    if (!animate) return;
+    zoom.value = 0;
+    zoom.value = withTiming(1, { duration: HERO_INTERVAL + HERO_FADE, easing: Easing.out(Easing.quad) });
+    return () => cancelAnimation(zoom);
+  }, [animate, zoom]);
+
+  const style = useAnimatedStyle(() => ({ transform: [{ scale: 1 + zoom.value * 0.09 }] }));
+
+  return <AnimatedImage source={{ uri }} style={[StyleSheet.absoluteFill, style]} contentFit="cover" />;
+}
+
+function HeroCarousel() {
+  const reduceMotion = useReduceMotion();
+  const [step, setStep] = useState(0);
+  const count = heroSlides.length;
+  const slide = heroSlides[step % count];
+  const animate = !reduceMotion;
+
+  useEffect(() => {
+    if (reduceMotion || count < 2) return;
+    const id = setInterval(() => setStep((s) => s + 1), HERO_INTERVAL);
+    return () => clearInterval(id);
+  }, [reduceMotion, count]);
+
+  return (
+    <>
+      {/* Keyed so each step cross-fades: the outgoing slide fades out while the
+          incoming one (rendered after it, so on top) fades in from zero. */}
+      <Animated.View
+        key={step}
+        style={StyleSheet.absoluteFill}
+        entering={animate && step > 0 ? FadeIn.duration(HERO_FADE) : undefined}
+        exiting={animate ? FadeOut.duration(HERO_FADE) : undefined}
+      >
+        <HeroSlideImage uri={slide.image} animate={animate} />
+        <LinearGradient
+          colors={['rgba(54, 30, 22, 0.02)', 'rgba(54, 30, 22, 0.02)', 'rgba(50, 25, 18, 0.72)']}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        {slide.bottomCaption ? (
+          <View style={styles.heroOdiaBlock}>
+            <Text style={styles.heroOdiaScript}>{slide.script}</Text>
+            {slide.sanskrit ? <Text style={styles.heroOdiaMantra}>{slide.sanskrit}</Text> : null}
+            <Text style={styles.heroOdiaBless}>{slide.blessing}</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroScript}>{slide.script}</Text>
+              <View style={styles.heroRule} />
+              <Text style={styles.heroSanskrit}>{slide.sanskrit}</Text>
+            </View>
+            <View style={styles.heroBottom}>
+              <Text style={styles.heroBlessing}>{slide.blessing}</Text>
+              <Feather name="arrow-up-right" size={18} color="#fff8e9" />
+            </View>
+          </>
+        )}
+      </Animated.View>
+
+      {count > 1 && (
+        <View style={styles.heroDots} pointerEvents="none">
+          {heroSlides.map((s, i) => (
+            <View key={s.image} style={[styles.heroDot, i === step % count && styles.heroDotActive]} />
+          ))}
+        </View>
+      )}
+    </>
+  );
+}
 
 const insights = [
   { label: 'Lucky Color', value: 'Saffron Gold', icon: 'droplet', tint: '#d95f84', bg: '#fce9ee' },
@@ -133,21 +336,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={[styles.heroCard, { height: heroHeight }]}>
-          <Image source={{ uri: BANNER_URL }} style={StyleSheet.absoluteFill} contentFit="cover" />
-          <LinearGradient
-            colors={['rgba(54, 30, 22, 0.02)', 'rgba(54, 30, 22, 0.02)', 'rgba(50, 25, 18, 0.72)']}
-            locations={[0, 0.5, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.heroCopy}>
-            <Text style={styles.heroScript}>Good beginnings{'\n'}remove all obstacles</Text>
-            <View style={styles.heroRule} />
-            <Text style={styles.heroSanskrit}>|| Shri{'\n'}Ganeshaya{'\n'}Namah ||</Text>
-          </View>
-          <View style={styles.heroBottom}>
-            <Text style={styles.heroBlessing}>Divine guidance, always with you</Text>
-            <Feather name="arrow-up-right" size={18} color="#fff8e9" />
-          </View>
+          <HeroCarousel />
         </View>
 
         <View style={styles.greetingRow}>
@@ -231,7 +420,11 @@ export default function HomeScreen() {
               <LinearGradient colors={tool.colors} style={StyleSheet.absoluteFill} />
               <View style={styles.toolTopline}>
                 {tool.image ? (
-                  <Image source={{ uri: tool.image }} style={styles.toolImage} contentFit="contain" />
+                  tool.anim ? (
+                    <AnimatedToolImage uri={tool.image} motion={tool.anim} />
+                  ) : (
+                    <Image source={{ uri: tool.image }} style={styles.toolImage} contentFit="contain" />
+                  )
                 ) : (
                   <View style={styles.toolIcon}><Feather name={tool.icon} size={25} color="#9a671a" /></View>
                 )}
@@ -275,11 +468,18 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.62 },
   heroCard: { marginHorizontal: 14, borderRadius: 25, overflow: 'hidden', backgroundColor: '#c98142', shadowColor: '#935522', shadowOpacity: 0.19, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
   heroCopy: { position: 'absolute', top: 28, left: 17, alignItems: 'center', width: 86 },
+  heroOdiaBlock: { position: 'absolute', bottom: 18, left: 18, right: 18, alignItems: 'center' },
+  heroOdiaScript: { fontWeight: '700', fontSize: 14, lineHeight: 21, color: '#fff8eb', textAlign: 'center', textShadowColor: 'rgba(50,25,18,0.85)', textShadowRadius: 6 },
+  heroOdiaMantra: { fontWeight: '600', fontSize: 12, lineHeight: 17, color: '#ffd98a', textAlign: 'center', marginTop: 6, textShadowColor: 'rgba(50,25,18,0.85)', textShadowRadius: 5 },
+  heroOdiaBless: { fontWeight: '500', fontSize: 11.5, lineHeight: 16, color: '#ffeccf', textAlign: 'center', marginTop: 5, textShadowColor: 'rgba(50,25,18,0.8)', textShadowRadius: 5 },
   heroScript: { fontWeight: '500', fontSize: 12, lineHeight: 16, fontStyle: 'italic', color: '#fff8eb', textAlign: 'center', textShadowColor: 'rgba(71,33,16,0.42)', textShadowRadius: 4 },
   heroRule: { width: 50, height: 1, backgroundColor: 'rgba(255,241,204,0.55)', marginVertical: 10 },
   heroSanskrit: { fontWeight: '500', fontSize: 11, lineHeight: 15, color: '#fff5dd', textAlign: 'center' },
   heroBottom: { position: 'absolute', bottom: 17, left: 18, right: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   heroBlessing: { fontWeight: '500', fontSize: 11, letterSpacing: 0.3, color: '#fff6e7', maxWidth: 200 },
+  heroDots: { position: 'absolute', top: 16, right: 16, flexDirection: 'row', gap: 5 },
+  heroDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,246,231,0.4)' },
+  heroDotActive: { width: 16, backgroundColor: '#fff6e7' },
   greetingRow: { paddingHorizontal: 21, paddingTop: 19, paddingBottom: 11, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   greeting: { fontWeight: '600', fontSize: 21, color: '#55372c' },
   sparkle: { color: '#d18c2b', fontSize: 18 },

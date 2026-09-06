@@ -1,16 +1,18 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "AstraVeda",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "astraveda",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.astraveda.app"
     },
     "android": {
+      "package": "com.astraveda.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -54,6 +56,12 @@
         "projectId": "d53f4651-a0d3-44ac-a53a-cc4134adcc90"
       }
     },
-    "owner": "saasaideveloper"
+    "owner": "saasaideveloper",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d53f4651-a0d3-44ac-a53a-cc4134adcc90"
+    }
   }
 }

@@ -1,29 +1,83 @@
-import { Tabs } from 'expo-router';
-import { BlurView } from 'expo-blur';
+import { Tabs, usePathname } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
-import { GestureResponderEvent, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useEffect, type ReactNode } from 'react';
+import { GestureResponderEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const FLOWER_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788604219/flower_feu0pw.png';
-const GOLD = '#c18426';
-const GOLD_STRONG = '#a2660f';
+// e_trim crops the transparent margin baked into the source PNG so the flower
+// fills the circle edge-to-edge instead of floating with a gold ring around it.
+const FLOWER_URL =
+  'https://res.cloudinary.com/dkqbzwicr/image/upload/e_trim/w_120,h_120,c_fill/v1788604219/flower_feu0pw.png';
+
+// Bright saffron→amber bar. Opaque so scrolling content sits cleanly behind it.
+const BAR_GRADIENT = ['#c18426', '#e0a83c'] as const;
+// Active tab pops in the brand purple against the gold bar so the current
+// screen is unmistakable.
+const ACTIVE_PILL = '#8f29dd';
+const ACTIVE_INK = '#ffffff';
+const INACTIVE_INK = 'rgba(255,250,242,0.92)';
 
 type TabButtonProps = {
   children?: ReactNode;
   onPress?: (event: GestureResponderEvent) => void;
   accessibilityState?: { selected?: boolean };
+  label?: string;
+  route?: string;
 };
 
-function TabButton({ children, onPress, accessibilityState }: TabButtonProps) {
-  const focused = accessibilityState?.selected;
+function TabButton({ onPress, label, route }: TabButtonProps) {
+  const pathname = usePathname();
+  const focused = pathname === route;
+  const progress = useSharedValue(focused ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(focused ? 1 : 0, { duration: 220 });
+  }, [focused, progress]);
+
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ scale: 0.85 + progress.value * 0.15 }],
+  }));
+
   return (
-    <Pressable onPress={onPress} style={[styles.tab, focused && styles.tabActive]}>
-      {children}
+    <Pressable onPress={onPress} style={styles.tab}>
+      <Animated.View style={[styles.pill, pillStyle]} />
+      <View style={styles.tabContent}>
+        <Ionicons
+          name={focused ? ICONS[label ?? ''].on : ICONS[label ?? ''].off}
+          size={20}
+          color={focused ? ACTIVE_INK : INACTIVE_INK}
+        />
+        {focused && (
+          <Animated.Text
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(120)}
+            style={styles.label}
+            numberOfLines={1}
+          >
+            {label}
+          </Animated.Text>
+        )}
+      </View>
     </Pressable>
   );
 }
+
+const ICONS: Record<string, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
+  Home: { on: 'home', off: 'home-outline' },
+  Astrology: { on: 'planet', off: 'planet-outline' },
+  Puja: { on: 'flame', off: 'flame-outline' },
+  Profile: { on: 'person', off: 'person-outline' },
+};
 
 function CenterTabButton({ onPress }: TabButtonProps) {
   return (
@@ -43,15 +97,14 @@ export default function AppTabs() {
       safeAreaInsets={{ bottom: 0 }}
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: true,
-        tabBarActiveTintColor: '#ffe9b8',
-        tabBarInactiveTintColor: 'rgba(255,244,227,0.52)',
-        tabBarLabelStyle: styles.label,
+        tabBarShowLabel: false,
         tabBarStyle: [styles.bar, { bottom: insets.bottom + 12 }],
+        tabBarItemStyle: styles.barItem,
         tabBarBackground: () => (
-          <BlurView
-            intensity={Platform.OS === 'ios' ? 40 : 90}
-            tint="dark"
+          <LinearGradient
+            colors={BAR_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={StyleSheet.absoluteFill}
           />
         ),
@@ -59,44 +112,23 @@ export default function AppTabs() {
     >
       <Tabs.Screen
         name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
-          tabBarButton: (props) => <TabButton {...props} />,
-        }}
+        options={{ title: 'Home', tabBarButton: (props) => <TabButton {...props} label="Home" route="/" /> }}
       />
       <Tabs.Screen
         name="astrology"
-        options={{
-          title: 'Astrology',
-          tabBarIcon: ({ color, size }) => <Ionicons name="planet-outline" size={size} color={color} />,
-          tabBarButton: (props) => <TabButton {...props} />,
-        }}
+        options={{ title: 'Astrology', tabBarButton: (props) => <TabButton {...props} label="Astrology" route="/astrology" /> }}
       />
       <Tabs.Screen
         name="ask"
-        options={{
-          title: '',
-          tabBarButton: (props) => <CenterTabButton {...props} />,
-        }}
+        options={{ title: '', tabBarButton: (props) => <CenterTabButton {...props} /> }}
       />
       <Tabs.Screen
         name="puja"
-        options={{
-          title: 'Puja',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="temple-hindu" size={size} color={color} />
-          ),
-          tabBarButton: (props) => <TabButton {...props} />,
-        }}
+        options={{ title: 'Puja', tabBarButton: (props) => <TabButton {...props} label="Puja" route="/puja" /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
-          tabBarButton: (props) => <TabButton {...props} />,
-        }}
+        options={{ title: 'Profile', tabBarButton: (props) => <TabButton {...props} label="Profile" route="/profile" /> }}
       />
       <Tabs.Screen name="explore" options={{ href: null }} />
     </Tabs>
@@ -108,29 +140,49 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    height: 78,
-    borderRadius: 28,
+    height: 72,
+    borderRadius: 30,
     borderTopWidth: 0,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
-    elevation: 8,
-    shadowColor: '#1e120c',
-    shadowOpacity: 0.35,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
+    borderColor: 'rgba(255,250,242,0.28)',
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+  },
+  barItem: {
+    height: 72,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 5,
-    paddingBottom: 4,
   },
-  tabActive: {},
+  pill: {
+    position: 'absolute',
+    top: 14,
+    bottom: 14,
+    left: 5,
+    right: 5,
+    borderRadius: 20,
+    backgroundColor: ACTIVE_PILL,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
+  },
+  tabContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 6,
+  },
   label: {
     fontSize: 10,
     fontWeight: '700',
+    color: ACTIVE_INK,
+    flexShrink: 1,
   },
   centerTab: {
     flex: 1,
@@ -138,24 +190,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   centerIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: GOLD,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#c18426',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: -28,
-    marginBottom: 4,
-    borderWidth: 4,
-    borderColor: '#2a1b16',
+    marginTop: -26,
     overflow: 'hidden',
-    shadowColor: GOLD_STRONG,
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    borderWidth: 4,
+    borderColor: '#fffaf2',
   },
   centerImage: {
     width: '100%',
     height: '100%',
+    transform: [{ scale: 1.08 }],
   },
 });
