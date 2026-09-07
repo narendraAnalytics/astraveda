@@ -7,3 +7,6 @@ pydantic-settings==2.7.1
 python-dotenv==1.0.1
 pyjwt[crypto]==2.10.1
 svix==1.42.0
+pyswisseph==2.10.3.2
+jyotishyamitra==1.4.0
+tzdata==2026.3

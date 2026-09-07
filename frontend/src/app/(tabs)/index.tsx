@@ -28,6 +28,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/expo';
 
 import { LanguageSheet } from '../../components/language-sheet';
@@ -289,7 +290,8 @@ export default function HomeScreen() {
     return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
   }, []);
 
-  const { user } = useUser();
+  const router = useRouter();
+  const { user, isSignedIn } = useUser();
   const firstName = user?.firstName ?? user?.username ?? null;
   const greetingText = useMemo(() => {
     const hour = new Date().getHours();
@@ -312,6 +314,10 @@ export default function HomeScreen() {
 
   const openTool = async (tool: Tool) => {
     await Haptics.selectionAsync();
+    if (tool.key === 'kundli') {
+      router.push(isSignedIn ? '/kundali' : '/(tabs)/profile');
+      return;
+    }
     Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [
       { text: t('common.keepExploring'), style: 'cancel' },
       { text: t('tools.startReading'), onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },

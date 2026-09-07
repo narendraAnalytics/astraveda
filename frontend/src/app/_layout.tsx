@@ -25,6 +25,7 @@ function AppShell() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="kundali" />
       <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
     </Stack>
   );

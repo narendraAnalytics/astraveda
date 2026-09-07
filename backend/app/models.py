@@ -1,6 +1,7 @@
 from datetime import date, datetime, time
 from uuid import UUID, uuid4
 
+from sqlalchemy import JSON
 from sqlmodel import Field, SQLModel, UniqueConstraint
 
 
@@ -46,3 +47,35 @@ class User(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_seen_at: datetime = Field(default_factory=datetime.utcnow)
     deleted_at: datetime | None = None
+
+
+class Kundali(SQLModel, table=True):
+    """One generated Vedic birth chart for a user. Chart math is computed
+    server-side (jyotishyamitra / Swiss Ephemeris) and cached here so opening
+    "My Kundli" again is instant — no recompute, no re-call to Sarvam."""
+
+    __tablename__ = "kundalis"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    # Birth details as entered.
+    name: str
+    birth_date: date
+    birth_time: time
+    unknown_time: bool = False
+    birth_place: str
+    latitude: float
+    longitude: float
+    timezone: str  # IANA name, e.g. "Asia/Kolkata"
+    tz_offset: float  # decimal hours at the birth instant (historical DST resolved)
+
+    # Normalized chart the app renders (Lagna, Rashi, Nakshatra, panchanga,
+    # D1 houses/planets, Vimshottari timeline). `raw` keeps the full engine
+    # output for later phases (D2–D60, shadbala, ashtakavarga).
+    chart: dict = Field(default_factory=dict, sa_type=JSON)
+    raw: dict | None = Field(default=None, sa_type=JSON)
+
+    reading_en: str | None = None
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)

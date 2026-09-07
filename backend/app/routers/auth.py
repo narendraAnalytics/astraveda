@@ -27,6 +27,10 @@ class UserOut(BaseModel):
     username: str | None
     image_url: str | None
     language: str
+    date_of_birth: str | None = None
+    birth_time: str | None = None
+    birth_place: str | None = None
+    timezone: str | None = None
 
     @classmethod
     def of(cls, u: User) -> "UserOut":
@@ -38,6 +42,10 @@ class UserOut(BaseModel):
             username=u.username,
             image_url=u.image_url,
             language=u.language,
+            date_of_birth=u.date_of_birth.isoformat() if u.date_of_birth else None,
+            birth_time=u.birth_time.strftime("%H:%M") if u.birth_time else None,
+            birth_place=u.birth_place,
+            timezone=u.timezone,
         )
 
 

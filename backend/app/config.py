@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     sarvam_translate_model: str = "sarvam-translate:v1"
     # Sarvam hard limit is 2000 chars/request; stay under it.
     sarvam_max_chars: int = 1800
+    # Chat model used to turn a computed chart into a plain-language reading.
+    sarvam_chat_model: str = "sarvam-105b"
+
+    # Open-Meteo geocoding — free, no key. Resolves a city to lat/lon/timezone.
+    geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
 
     @property
     def sqlalchemy_url(self) -> str:

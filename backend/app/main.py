@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import init_db
-from app.routers import auth, translate, webhooks
+from app.routers import auth, kundali, translate, webhooks
 
 settings = get_settings()
 
@@ -29,6 +29,7 @@ app.add_middleware(
 app.include_router(translate.router)
 app.include_router(auth.router)
 app.include_router(webhooks.router)
+app.include_router(kundali.router)
 
 
 @app.get("/health")
