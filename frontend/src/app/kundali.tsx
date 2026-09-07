@@ -33,6 +33,7 @@ import { readChartCache, writeChartCache } from '../lib/kundali-cache';
 import { CosmicLoader } from '../components/kundali/cosmic-loader';
 import { NorthIndianChart } from '../components/kundali/north-indian-chart';
 import { DashaTimeline } from '../components/kundali/dasha-timeline';
+import { ReadingView } from '../components/kundali/reading-view';
 
 const PURPLE = '#8f29dd';
 const CREAM = '#fffaf2';
@@ -571,10 +572,10 @@ function Results({
         ) : null}
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.delay(320).duration(400)} style={styles.section}>
+      <Animated.View entering={FadeInDown.delay(320).duration(400)} style={[styles.section, styles.readingSection]}>
         <Text style={styles.sectionTitle}>Your Reading</Text>
         {reading ? (
-          <Text style={styles.readingText}>{reading}</Text>
+          <ReadingView text={reading} />
         ) : readingLoading ? (
           <View style={styles.readingLoading}>
             <ActivityIndicator color={PURPLE} />
@@ -719,7 +720,7 @@ const styles = StyleSheet.create({
     padding: 15,
     marginTop: 14,
   },
-  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#5e3e31', marginBottom: 12 },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: '#8f29dd', marginBottom: 12, letterSpacing: 0.3 },
   factGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   factChip: {
     width: '48%',
@@ -737,7 +738,8 @@ const styles = StyleSheet.create({
   planetName: { fontSize: 12, fontWeight: '700', color: '#4a2f20', width: 76 },
   planetPos: { fontSize: 11, color: '#7a5a3f', flex: 1, textAlign: 'right' },
 
-  readingText: { fontSize: 13.5, lineHeight: 21, color: '#4a3a30' },
+  readingSection: { backgroundColor: '#fffdfb', borderColor: '#efe0f5' },
+  readingText: { fontSize: 15, lineHeight: 24, color: '#463a33' },
   readingLoading: { alignItems: 'center', gap: 10, paddingVertical: 14 },
   readingHint: { fontSize: 12, color: '#8b6f62' },
   retryBtn: {
