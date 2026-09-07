@@ -53,6 +53,8 @@ def _facts(name: str, chart: dict) -> str:
 
 
 def _reasoning_effort() -> str | None:
+    """low | medium | high enable reasoning; anything else (off, none, blank)
+    disables it."""
     val = settings.sarvam_reasoning_effort.strip().lower()
     return val if val in {"low", "medium", "high"} else None
 
