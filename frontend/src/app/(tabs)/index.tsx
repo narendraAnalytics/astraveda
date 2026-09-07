@@ -439,27 +439,6 @@ export default function HomeScreen() {
             <Feather name="sun" size={17} color="#aa6a28" />
             <Text style={styles.sectionTitle}>{t('home.cosmicGuidance')}</Text>
           </View>
-          <Pressable
-            onPress={() =>
-              Alert.alert(
-                `${cosmic.weekday} · ${cosmic.planet}`,
-                [
-                  cosmic.tithi && `Tithi: ${cosmic.tithi}`,
-                  cosmic.nakshatra && `Nakshatra: ${cosmic.nakshatra}`,
-                  `Sunrise ${cosmic.sunrise} · Sunset ${cosmic.sunset}`,
-                  `Rahu Kalam: ${cosmic.rahu_kalam.start} – ${cosmic.rahu_kalam.end}`,
-                  `Gulika Kalam: ${cosmic.gulika_kalam.start} – ${cosmic.gulika_kalam.end}`,
-                  `Yamaganda: ${cosmic.yamaganda.start} – ${cosmic.yamaganda.end}`,
-                  `${cosmic.best_time.label}: ${cosmic.best_time.start} – ${cosmic.best_time.end}`,
-                  cosmic.approximate && '\nTimings are approximate until your location is available.',
-                ]
-                  .filter(Boolean)
-                  .join('\n'),
-              )
-            }
-          >
-            <Text style={styles.viewDetails}>{t('common.viewDetails')} <Feather name="arrow-right" size={13} /></Text>
-          </Pressable>
         </View>
 
         <View style={styles.insightGrid}>
@@ -601,7 +580,6 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 21, paddingTop: 21, paddingBottom: 10 },
   sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontWeight: '600', fontSize: 14, color: '#51382d' },
-  viewDetails: { fontWeight: '500', fontSize: 10, color: '#745d53' },
   insightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, paddingHorizontal: 15 },
   insightCard: { width: '48.5%', minHeight: 112, borderRadius: 15, padding: 11, justifyContent: 'space-between' },
   insightIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
