@@ -11,8 +11,10 @@ from __future__ import annotations
 import re
 import textwrap
 from datetime import datetime
+from functools import lru_cache
 
 import jwt
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
 from fastapi import Depends, Header, HTTPException, status
 from sqlmodel import Session, select
 
@@ -29,24 +31,39 @@ class ClerkClaims(dict):
         return self["sub"]
 
 
+@lru_cache
 def _public_key() -> str:
-    """Return a canonical PEM public key from CLERK_JWT_KEY, tolerating the many
-    ways it gets pasted into an env var: real newlines, literal ``\\n``, no
-    newlines at all (headers + base64 on one line separated by spaces), or the
-    bare base64 body with no PEM header."""
+    """Return a canonical PEM public key from CLERK_JWT_KEY, tolerating every way
+    it gets mangled in an env var: real newlines, literal ``\\n``, one line with
+    spaces, a truncated ``-----END PUBLIC KEY-`` footer, or the bare base64 body.
+    We keep only base64 characters, then re-wrap into a clean 64-column PEM and
+    verify it actually loads."""
     raw = settings.clerk_jwt_key.strip()
     if not raw:
         raise HTTPException(status_code=500, detail="CLERK_JWT_KEY is not configured")
 
     raw = raw.replace("\\n", "\n")
-    # Strip PEM headers/footers and every kind of whitespace to get the base64 body.
-    body = re.sub(r"-----(BEGIN|END)[^-]*-----", "", raw)
-    body = re.sub(r"\s+", "", body)
-    if not body:
-        raise HTTPException(status_code=500, detail="CLERK_JWT_KEY is malformed")
+    # Drop any PEM armor, however mangled ("-----BEGIN PUBLIC KEY-----",
+    # "-----END PUBLIC KEY-", "BEGIN RSA PUBLIC KEY", ...).
+    body = re.sub(r"-*\s*(BEGIN|END)[A-Z0-9 ]*KEY\s*-*", "", raw, flags=re.IGNORECASE)
+    # Keep only the base64 alphabet.
+    body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+    if len(body) < 100:
+        raise HTTPException(status_code=500, detail="CLERK_JWT_KEY is malformed or truncated")
 
-    wrapped = "\n".join(textwrap.wrap(body, 64))
-    return f"-----BEGIN PUBLIC KEY-----\n{wrapped}\n-----END PUBLIC KEY-----\n"
+    pem = "-----BEGIN PUBLIC KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PUBLIC KEY-----\n"
+    try:
+        load_pem_public_key(pem.encode())
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "CLERK_JWT_KEY could not be parsed as a public key. Paste the full "
+                "PEM from the Clerk dashboard (API Keys -> Show JWT public key), "
+                f"including the BEGIN/END lines. ({exc})"
+            ),
+        ) from exc
+    return pem
 
 
 def verify_token(token: str) -> ClerkClaims:
