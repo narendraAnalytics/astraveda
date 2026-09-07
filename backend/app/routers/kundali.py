@@ -291,15 +291,16 @@ async def get_kundali(
     return KundaliOut.of(_get_owned(session, user, kundali_id))
 
 
-@router.delete("/{kundali_id}", status_code=204)
+@router.delete("/{kundali_id}")
 async def delete_kundali(
     kundali_id: str,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> None:
+) -> dict:
     row = _get_owned(session, user, kundali_id)
     session.delete(row)
     session.commit()
+    return {"deleted": True}
 
 
 @router.post("/{kundali_id}/reading", response_model=ReadingOut)

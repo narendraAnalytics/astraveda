@@ -132,7 +132,7 @@ export function getKundali(id: string, token: string | null) {
 }
 
 export function deleteKundali(id: string, token: string | null) {
-  return api<null>(`/kundali/${id}`, { method: 'DELETE', token });
+  return api<{ deleted: boolean }>(`/kundali/${id}`, { method: 'DELETE', token });
 }
 
 export function getKundaliReading(id: string, token: string | null) {
