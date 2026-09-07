@@ -20,16 +20,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '../lib/api';
 import {
+  createKundaliCheckout,
   generateKundali,
   getKundali,
   getKundaliReading,
+  pendingKundaliCheckout,
   RELATIONS,
   searchPlaces,
+  type GenerateBody,
   type Kundali,
+  type KundaliCheckout,
   type Place,
   type Relation,
 } from '../lib/kundali';
 import { readChartCache, writeChartCache } from '../lib/kundali-cache';
+import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
 import { CosmicLoader } from '../components/kundali/cosmic-loader';
 import { NorthIndianChart } from '../components/kundali/north-indian-chart';
 import { DashaTimeline } from '../components/kundali/dasha-timeline';
@@ -70,6 +75,10 @@ export default function KundaliScreen() {
   const [searching, setSearching] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+
+  // Payment state (₹15 per chart, verified server-side)
+  const [checkout, setCheckout] = useState<KundaliCheckout | null>(null);
+  const [resumable, setResumable] = useState<{ payment_id: string; birth: GenerateBody } | null>(null);
 
   // Reading state
   const [reading, setReading] = useState<string | null>(null);
@@ -150,6 +159,24 @@ export default function KundaliScreen() {
     };
   }, [isLoaded, isSignedIn, idParam, freshParam, resetForm]);
 
+  // ---- resume: a chart already paid for but not yet generated -------------
+  useEffect(() => {
+    if (phase !== 'form' || idParam) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getTokenRef.current();
+        const { pending } = await pendingKundaliCheckout(token);
+        if (!cancelled && pending) setResumable(pending);
+      } catch {
+        // no API / not signed in — nothing to resume
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, idParam]);
+
   // ---- place autocomplete -------------------------------------------------
   useEffect(() => {
     if (place && placeQuery === place.label) return;
@@ -185,37 +212,89 @@ export default function KundaliScreen() {
     [name, date, unknownTime, timeValue, place],
   );
 
+  const buildBody = useCallback((): GenerateBody | null => {
+    if (!date || !place) return null;
+    return {
+      name: name.trim(),
+      relation,
+      birth_date: toISODate(date),
+      birth_time: unknownTime || !timeValue ? '12:00' : toHM(timeValue),
+      unknown_time: unknownTime,
+      birth_place: place.label,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      timezone: place.timezone,
+    };
+  }, [date, place, name, relation, unknownTime, timeValue]);
+
+  // Compute + save the chart. `payment` is either the 3 fields Checkout returned
+  // (fresh purchase) or just { payment_id } (resuming an already-paid order).
+  const runGenerate = useCallback(
+    async (payment: { payment_id: string } & Partial<CheckoutResult>, body: GenerateBody) => {
+      setCheckout(null);
+      setResumable(null);
+      setError(null);
+      setPhase('generating');
+      try {
+        const token = await getTokenRef.current();
+        const result = await generateKundali(body, payment as any, token);
+        setKundali(result);
+        setReading(result.reading_en);
+        writeChartCache(result);
+        loadedFor.current = `id:${result.id}`;
+        setPhase('results');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
+        setPhase('form');
+      }
+    },
+    [],
+  );
+
   const onGenerate = useCallback(async () => {
-    if (!canSubmit || !date || !place) return;
+    const body = buildBody();
+    if (!canSubmit || !body) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    setPhase('generating');
     try {
       const token = await getTokenRef.current();
-      const result = await generateKundali(
-        {
-          name: name.trim(),
-          relation,
-          birth_date: toISODate(date),
-          birth_time: unknownTime || !timeValue ? '12:00' : toHM(timeValue),
-          unknown_time: unknownTime,
-          birth_place: place.label,
-          latitude: place.latitude,
-          longitude: place.longitude,
-          timezone: place.timezone,
-        },
-        token,
-      );
-      setKundali(result);
-      setReading(result.reading_en);
-      writeChartCache(result);
-      loadedFor.current = `id:${result.id}`; // we're now effectively viewing this chart
-      setPhase('results');
+      const co = await createKundaliCheckout(body, token);
+      setCheckout(co);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
-      setPhase('form');
+      if (e instanceof ApiError && e.status === 409) {
+        const existingId = e.data?.detail?.kundali_id;
+        if (existingId) {
+          router.replace(`/kundali?id=${existingId}`);
+          return;
+        }
+      }
+      if (e instanceof ApiError && e.status === 503) {
+        setError('Payments are not available right now. Please try again later.');
+        return;
+      }
+      setError(e instanceof Error ? e.message : 'Could not start checkout');
     }
-  }, [canSubmit, date, place, name, relation, unknownTime, timeValue]);
+  }, [canSubmit, buildBody, router]);
+
+  const onCheckoutClose = useCallback(
+    (r: CheckoutResult) => {
+      const body = buildBody();
+      if (r.ok && body && checkout) {
+        runGenerate(
+          {
+            payment_id: checkout.payment_id,
+            razorpay_payment_id: r.razorpay_payment_id,
+            razorpay_signature: r.razorpay_signature,
+          } as any,
+          body,
+        );
+      } else {
+        setCheckout(null);
+        if (!r.ok && r.reason === 'error') setError(r.message ?? 'Payment could not be completed');
+      }
+    },
+    [buildBody, checkout, runGenerate],
+  );
 
   // ---- reading (phase 2): fetch once per kundali (+ once per manual retry) ---
   const readingFetchedKey = useRef<string | null>(null);
@@ -304,6 +383,22 @@ export default function KundaliScreen() {
           contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 48 }}
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
+            {resumable ? (
+              <Pressable
+                onPress={() => runGenerate({ payment_id: resumable.payment_id }, resumable.birth)}
+                style={({ pressed }) => [styles.resumeCard, pressed && styles.pressed]}
+              >
+                <Feather name="check-circle" size={18} color="#2f8f5b" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resumeTitle}>Payment received</Text>
+                  <Text style={styles.resumeBody}>
+                    Tap to generate {resumable.birth.name || 'your'} chart — no charge.
+                  </Text>
+                </View>
+                <Feather name="arrow-right" size={16} color="#2f8f5b" />
+              </Pressable>
+            ) : null}
+
             <Field label="Full name">
               <TextInput
                 style={styles.input}
@@ -413,8 +508,11 @@ export default function KundaliScreen() {
               style={({ pressed }) => [styles.cta, !canSubmit && styles.ctaDisabled, pressed && styles.pressed]}
             >
               <Feather name="star" size={17} color="#fff" />
-              <Text style={styles.ctaText}>Generate Kundali</Text>
+              <Text style={styles.ctaText}>Generate Kundali · ₹15</Text>
             </Pressable>
+            {canSubmit ? (
+              <Text style={styles.disabledHint}>One-time ₹15 · secure payment via Razorpay</Text>
+            ) : null}
             {!canSubmit ? (
               <Text style={styles.disabledHint}>
                 {name.trim().length < 2
@@ -455,6 +553,19 @@ export default function KundaliScreen() {
             if (d) setTimeValue(d);
           }}
           onDismiss={() => setShowTimePicker(false)}
+        />
+      ) : null}
+
+      {checkout ? (
+        <RazorpayCheckout
+          visible
+          orderId={checkout.order_id}
+          keyId={checkout.key_id}
+          amountPaise={checkout.amount_paise}
+          description="Kundali chart"
+          name={userRef.current?.fullName ?? name.trim()}
+          email={userRef.current?.primaryEmailAddress?.emailAddress ?? ''}
+          onClose={onCheckoutClose}
         />
       ) : null}
     </View>
@@ -698,6 +809,19 @@ const styles = StyleSheet.create({
   ctaDisabled: { backgroundColor: '#d8c3ec', shadowOpacity: 0 },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   disabledHint: { fontSize: 11, color: '#9b7663', textAlign: 'center', marginTop: 8 },
+  resumeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: 14,
+    backgroundColor: '#eaf7ee',
+    borderWidth: 1,
+    borderColor: '#bfe3cb',
+  },
+  resumeTitle: { fontSize: 13, fontWeight: '700', color: '#1f6b45' },
+  resumeBody: { fontSize: 11, color: '#3f7a5c', marginTop: 1 },
 
   genName: { marginTop: 30, fontSize: 14, fontWeight: '600', color: '#6e4a33' },
 

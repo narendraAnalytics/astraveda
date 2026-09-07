@@ -52,6 +52,8 @@ def health() -> dict:
         "status": "ok",
         "sarvam_configured": bool(settings.sarvam_api_key),
         "gemini_configured": bool(settings.gemini_api_key),
+        "razorpay_configured": bool(settings.razorpay_key_id and settings.razorpay_key_secret),
+        "razorpay_webhook_configured": bool(settings.razorpay_webhook_secret),
         "clerk_configured": bool(settings.clerk_jwt_key),
         "clerk_jwt_valid": clerk_jwt_valid,
         "clerk_jwt_error": clerk_jwt_error,

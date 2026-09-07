@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
     gemini_vision_model: str = "gemini-2.0-flash"
 
+    # Razorpay — payments. Test-mode keys locally; live keys in the same vars on
+    # Render. Webhook secret is generated in the Razorpay dashboard when you add
+    # the endpoint (https://<render-url>/webhooks/razorpay, event order.paid).
+    # Money is server-authoritative: the client never sends an amount and never
+    # asserts payment success (finalview.txt §10).
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    # Price of one Kundali, in paise. ₹15 = 1500. Server-set, never from client.
+    kundali_price_paise: int = 1500
+
     @property
     def sqlalchemy_url(self) -> str:
         if not self.database_url:

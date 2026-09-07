@@ -32,6 +32,53 @@ class PanchangCache(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Payment(SQLModel, table=True):
+    """One Razorpay payment. Immutable ledger (finalview.txt §7/§10): the row is
+    only ever advanced created → paid → consumed (or → failed). Money logic is
+    server-authoritative — `amount_paise` is set from config, never the client.
+    """
+
+    __tablename__ = "payments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    purpose: str = Field(default="kundali")  # kundali | (later: palm, wallet_topup …)
+    amount_paise: int
+    currency: str = Field(default="INR")
+
+    razorpay_order_id: str = Field(index=True, unique=True)
+    razorpay_payment_id: str | None = None
+
+    status: str = Field(default="created")  # created | paid | consumed | failed
+
+    # What the payment unlocked, once consumed.
+    reference_type: str | None = None  # "kundali"
+    reference_id: str | None = None    # kundali id (str) — plain, not a FK (avoids a cycle)
+
+    # Birth details captured at checkout; generate trusts THIS, not a fresh
+    # client payload, so a paid order can't be redirected to a different chart.
+    birth_snapshot: dict = Field(default_factory=dict, sa_type=JSON)
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    paid_at: datetime | None = None
+    consumed_at: datetime | None = None
+
+
+class PaymentWebhook(SQLModel, table=True):
+    """Raw Razorpay webhook events, deduped on the event id so a redelivery
+    can't double-process (finalview.txt §10 / roadmap 1E)."""
+
+    __tablename__ = "payment_webhooks"
+
+    id: int | None = Field(default=None, primary_key=True)
+    razorpay_event_id: str = Field(index=True, unique=True)
+    event: str
+    payload: dict = Field(default_factory=dict, sa_type=JSON)
+    processed: bool = Field(default=False)
+    received_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class User(SQLModel, table=True):
     """AstraVeda account. Clerk owns identity (email, auth, sessions); this row
     holds the app-specific profile and the permanent link via clerk_user_id.
@@ -91,6 +138,10 @@ class Kundali(SQLModel, table=True):
     raw: dict | None = Field(default=None, sa_type=JSON)
 
     reading_en: str | None = None
+
+    # The ₹15 payment that unlocked this chart (null for charts created before
+    # payments were switched on).
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

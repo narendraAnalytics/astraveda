@@ -6,6 +6,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    // Parsed response body, when there is one — e.g. a 409 whose `detail` is a
+    // structured payload the caller needs to act on.
+    public data?: any,
   ) {
     super(message);
   }
@@ -41,7 +44,9 @@ export async function api<T>(path: string, { method = 'GET', body, token }: Opti
     throw new ApiError(res.status, 'Unexpected non-JSON response from the server');
   }
   if (!res.ok) {
-    throw new ApiError(res.status, data?.detail ?? res.statusText);
+    const detail = data?.detail;
+    const message = typeof detail === 'string' ? detail : res.statusText;
+    throw new ApiError(res.status, message, data);
   }
   return data as T;
 }

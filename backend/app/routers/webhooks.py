@@ -17,7 +17,8 @@ from svix.webhooks import Webhook, WebhookVerificationError
 from app.auth import get_or_create_user
 from app.config import get_settings
 from app.db import get_session
-from app.models import User
+from app.models import Payment, PaymentWebhook, User
+from app.services import payments
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 settings = get_settings()
@@ -72,3 +73,66 @@ async def clerk_webhook(request: Request, session: Session = Depends(get_session
             session.commit()
 
     return {"ok": True, "type": event_type}
+
+
+@router.post("/razorpay")
+async def razorpay_webhook(request: Request, session: Session = Depends(get_session)) -> dict:
+    """Razorpay events — the source of truth for payment status.
+
+    Configure in the Razorpay dashboard: Settings -> Webhooks -> add
+      URL:     https://<your-render-url>/webhooks/razorpay
+      events:  order.paid, payment.failed
+    Copy the secret into RAZORPAY_WEBHOOK_SECRET. Idempotent on the event id.
+    """
+    body = await request.body()
+    signature = request.headers.get("x-razorpay-signature", "")
+    try:
+        event = payments.verify_webhook(body=body, signature=signature)
+    except payments.PaymentError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    event_id = request.headers.get("x-razorpay-event-id", "")
+    event_type = event.get("event", "")
+
+    if event_id:
+        seen = session.exec(
+            select(PaymentWebhook).where(PaymentWebhook.razorpay_event_id == event_id)
+        ).first()
+        if seen is not None:
+            return {"ok": True, "duplicate": True}
+        session.add(
+            PaymentWebhook(razorpay_event_id=event_id, event=event_type, payload=event)
+        )
+        session.commit()
+
+    entities = event.get("payload") or {}
+    order_ent = (entities.get("order") or {}).get("entity") or {}
+    payment_ent = (entities.get("payment") or {}).get("entity") or {}
+    order_id = order_ent.get("id") or payment_ent.get("order_id")
+
+    if order_id:
+        pay = session.exec(
+            select(Payment).where(Payment.razorpay_order_id == order_id)
+        ).first()
+        if pay is not None and pay.status == "created":
+            if event_type in ("order.paid", "payment.captured"):
+                pay.status = "paid"
+                pay.paid_at = datetime.utcnow()
+                pay.razorpay_payment_id = pay.razorpay_payment_id or payment_ent.get("id")
+                session.add(pay)
+                session.commit()
+            elif event_type == "payment.failed":
+                pay.status = "failed"
+                session.add(pay)
+                session.commit()
+
+    if event_id:
+        wh = session.exec(
+            select(PaymentWebhook).where(PaymentWebhook.razorpay_event_id == event_id)
+        ).first()
+        if wh is not None:
+            wh.processed = True
+            session.add(wh)
+            session.commit()
+
+    return {"ok": True, "event": event_type}

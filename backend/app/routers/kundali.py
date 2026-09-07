@@ -8,7 +8,7 @@ the (slower) Sarvam narrative. Everything is persisted so re-opening is instant.
 from __future__ import annotations
 
 from datetime import date, datetime, time
-from uuid import UUID
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import anyio
@@ -17,9 +17,10 @@ from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
 from app.auth import get_current_user
+from app.config import get_settings
 from app.db import get_session
-from app.models import Kundali, User
-from app.services import geocode, kundali as kundali_engine, reading
+from app.models import Kundali, Payment, User
+from app.services import geocode, kundali as kundali_engine, payments, reading
 
 router = APIRouter(prefix="/kundali", tags=["kundali"])
 
@@ -51,6 +52,29 @@ class GenerateIn(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     timezone: str = Field(min_length=1, max_length=64)
+
+    # Proof of the ₹15 payment. Required once Razorpay is configured; the three
+    # razorpay_* fields are what Checkout hands the client, verified server-side.
+    payment_id: str | None = None
+    razorpay_payment_id: str | None = None
+    razorpay_signature: str | None = None
+
+    def birth_fields(self) -> dict:
+        return self.model_dump(
+            mode="json",
+            include={
+                "name", "relation", "birth_date", "birth_time",
+                "unknown_time", "birth_place", "latitude", "longitude", "timezone",
+            },
+        )
+
+
+class CheckoutOut(BaseModel):
+    payment_id: str
+    order_id: str
+    key_id: str
+    amount_paise: int
+    currency: str = "INR"
 
 
 class KundaliOut(BaseModel):
@@ -145,6 +169,31 @@ def _tz_offset_hours(tz_name: str, d: date, t: time) -> float:
     return off.total_seconds() / 3600 if off else 0.0
 
 
+def _find_existing_chart(
+    session: Session, user: User, *, name: str, birth_date: date, birth_time: time,
+    latitude: float, longitude: float,
+) -> Kundali | None:
+    """Same person = same name + exact birth moment + rounded location. Used to
+    avoid both duplicate rows and duplicate charges."""
+    rows = session.exec(
+        select(Kundali).where(
+            Kundali.user_id == user.id,
+            Kundali.birth_date == birth_date,
+            Kundali.birth_time == birth_time,
+        )
+    ).all()
+    return next(
+        (
+            k
+            for k in rows
+            if k.name.strip().lower() == name.strip().lower()
+            and round(k.latitude, 2) == round(latitude, 2)
+            and round(k.longitude, 2) == round(longitude, 2)
+        ),
+        None,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -163,12 +212,183 @@ async def geocode_place(
     return [PlaceOut(**row) for row in rows]
 
 
+@router.post("/checkout", response_model=CheckoutOut)
+async def kundali_checkout(
+    body: GenerateIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> CheckoutOut:
+    """Create a ₹15 Razorpay order for one Kundali. 409 (with the existing id)
+    if this exact chart already exists, so the user is never charged twice."""
+    settings = get_settings()
+    if not payments.is_configured():
+        raise HTTPException(status_code=503, detail="Payments are not configured")
+
+    birth_time = time(12, 0) if body.unknown_time else body.birth_time
+
+    match = _find_existing_chart(
+        session, user, name=body.name, birth_date=body.birth_date, birth_time=birth_time,
+        latitude=body.latitude, longitude=body.longitude,
+    )
+    if match is not None:
+        raise HTTPException(status_code=409, detail={"kundali_id": str(match.id)})
+
+    snapshot = body.birth_fields()
+
+    # Reuse an unconsumed order for the identical birth snapshot (double-tap /
+    # returned to the form) instead of opening a second Razorpay order.
+    pending = session.exec(
+        select(Payment).where(
+            Payment.user_id == user.id,
+            Payment.purpose == "kundali",
+            Payment.status.in_(("created", "paid")),
+            Payment.consumed_at.is_(None),
+        )
+    ).all()
+    reuse = next((p for p in pending if p.birth_snapshot == snapshot), None)
+    if reuse is not None:
+        return CheckoutOut(
+            payment_id=str(reuse.id),
+            order_id=reuse.razorpay_order_id,
+            key_id=settings.razorpay_key_id,
+            amount_paise=reuse.amount_paise,
+        )
+
+    payment_id = uuid4()
+    amount_paise = settings.kundali_price_paise
+    try:
+        order = await anyio.to_thread.run_sync(
+            lambda: payments.create_order(
+                amount_paise=amount_paise,
+                receipt=str(payment_id),
+                notes={"user_id": str(user.id), "purpose": "kundali", "name": body.name.strip()},
+            )
+        )
+    except payments.PaymentError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    pay = Payment(
+        id=payment_id,
+        user_id=user.id,
+        purpose="kundali",
+        amount_paise=amount_paise,
+        razorpay_order_id=order["id"],
+        birth_snapshot=snapshot,
+    )
+    session.add(pay)
+    session.commit()
+    return CheckoutOut(
+        payment_id=str(payment_id),
+        order_id=order["id"],
+        key_id=settings.razorpay_key_id,
+        amount_paise=amount_paise,
+    )
+
+
+@router.get("/checkout/pending")
+async def pending_checkout(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> dict:
+    """A paid-but-unclaimed Kundali order (app died right after paying) so the
+    form can offer "resume" without a second charge."""
+    candidates = session.exec(
+        select(Payment)
+        .where(
+            Payment.user_id == user.id,
+            Payment.purpose == "kundali",
+            Payment.status.in_(("created", "paid")),
+            Payment.consumed_at.is_(None),
+        )
+        .order_by(Payment.created_at.desc())
+    ).all()
+
+    for pay in candidates:
+        if pay.status == "paid":
+            return {"pending": {"payment_id": str(pay.id), "birth": pay.birth_snapshot}}
+        # `created` but maybe paid — confirm directly with Razorpay before offering.
+        try:
+            if await anyio.to_thread.run_sync(
+                lambda p=pay: payments.order_is_paid(p.razorpay_order_id)
+            ):
+                pay.status = "paid"
+                pay.paid_at = datetime.utcnow()
+                session.add(pay)
+                session.commit()
+                return {"pending": {"payment_id": str(pay.id), "birth": pay.birth_snapshot}}
+        except payments.PaymentError:
+            continue
+    return {"pending": None}
+
+
+async def _resolve_payment(session: Session, user: User, body: GenerateIn) -> Payment:
+    """Return the caller's Kundali payment once it is confirmed paid.
+
+    - `consumed`  → returned as-is (caller handles the idempotent retry).
+    - `paid`      → the webhook already confirmed it; nothing more to check.
+    - `created`   → verify the Checkout signature AND fetch the order from
+                    Razorpay to confirm it is really paid, then advance to paid.
+    Anything else → 402.
+    """
+    if not body.payment_id:
+        raise HTTPException(status_code=402, detail="Payment required")
+    try:
+        pid = UUID(body.payment_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=402, detail="Invalid payment reference") from exc
+
+    pay = session.get(Payment, pid)
+    if pay is None or pay.user_id != user.id or pay.purpose != "kundali":
+        raise HTTPException(status_code=402, detail="Payment not found")
+    if pay.status in ("consumed", "paid"):
+        return pay
+    if pay.status != "created":
+        raise HTTPException(status_code=402, detail="Payment did not complete")
+
+    try:
+        # Fresh purchase: verify the fields Checkout returned. Resume (no fields):
+        # rely on fetching our own order from Razorpay.
+        if body.razorpay_payment_id and body.razorpay_signature:
+            payments.verify_checkout_signature(
+                order_id=pay.razorpay_order_id,
+                payment_id=body.razorpay_payment_id,
+                signature=body.razorpay_signature,
+            )
+        confirmed = await anyio.to_thread.run_sync(
+            lambda: payments.order_is_paid(pay.razorpay_order_id)
+        )
+    except payments.PaymentError as exc:
+        raise HTTPException(status_code=402, detail=str(exc)) from exc
+    if not confirmed:
+        raise HTTPException(status_code=402, detail="Payment not completed")
+
+    pay.status = "paid"
+    pay.paid_at = datetime.utcnow()
+    pay.razorpay_payment_id = body.razorpay_payment_id
+    session.add(pay)
+    session.commit()
+    session.refresh(pay)
+    return pay
+
+
 @router.post("/generate", response_model=KundaliOut)
 async def generate_kundali(
     body: GenerateIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> KundaliOut:
+    pay: Payment | None = None
+    if payments.is_configured():
+        pay = await _resolve_payment(session, user, body)
+        # A retry after the chart was already made → return that same chart.
+        if pay.status == "consumed" and pay.reference_id:
+            done = session.get(Kundali, UUID(pay.reference_id))
+            if done is not None:
+                return KundaliOut.of(done)
+        # Trust the snapshot captured at checkout, never a fresh client payload.
+        if pay.birth_snapshot:
+            body = GenerateIn(**pay.birth_snapshot)
+
     birth_time = time(12, 0) if body.unknown_time else body.birth_time
     tz_offset = _tz_offset_hours(body.timezone, body.birth_date, birth_time)
 
@@ -193,22 +413,9 @@ async def generate_kundali(
 
     # De-dupe: regenerating the same person updates their chart in place instead
     # of piling up copies. Match on name + exact birth moment + rounded location.
-    existing = session.exec(
-        select(Kundali).where(
-            Kundali.user_id == user.id,
-            Kundali.birth_date == body.birth_date,
-            Kundali.birth_time == birth_time,
-        )
-    ).all()
-    row = next(
-        (
-            k
-            for k in existing
-            if k.name.strip().lower() == name.lower()
-            and round(k.latitude, 2) == round(body.latitude, 2)
-            and round(k.longitude, 2) == round(body.longitude, 2)
-        ),
-        None,
+    row = _find_existing_chart(
+        session, user, name=name, birth_date=body.birth_date, birth_time=birth_time,
+        latitude=body.latitude, longitude=body.longitude,
     )
 
     if row is None:
@@ -228,6 +435,15 @@ async def generate_kundali(
     row.chart = chart
     row.raw = raw
     # Chart is deterministic from these inputs, so an existing reading still fits.
+
+    # Consume the ₹15 entitlement against this chart (immutably links the two).
+    if pay is not None and pay.status != "consumed":
+        row.payment_id = pay.id
+        pay.status = "consumed"
+        pay.consumed_at = datetime.utcnow()
+        pay.reference_type = "kundali"
+        pay.reference_id = str(row.id)
+        session.add(pay)
 
     # Mirror birth details onto the profile only for the user's own chart.
     if relation in (None, "Self"):

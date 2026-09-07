@@ -115,8 +115,46 @@ export function searchPlaces(q: string) {
   return api<Place[]>(`/kundali/geocode?q=${encodeURIComponent(q)}`);
 }
 
-export function generateKundali(body: GenerateBody, token: string | null) {
-  return api<Kundali>('/kundali/generate', { method: 'POST', body, token });
+export type KundaliCheckout = {
+  payment_id: string;
+  order_id: string;
+  key_id: string;
+  amount_paise: number;
+  currency: string;
+};
+
+export type GeneratePayment = {
+  payment_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+};
+
+// Creates a ₹15 Razorpay order for one chart. Throws ApiError 409 with
+// { detail: { kundali_id } } if that exact chart already exists (no charge),
+// or 503 if payments aren't configured on the backend.
+export function createKundaliCheckout(body: GenerateBody, token: string | null) {
+  return api<KundaliCheckout>('/kundali/checkout', { method: 'POST', body, token });
+}
+
+// A paid-but-unclaimed order (app closed right after paying) so the form can
+// offer a "resume" instead of charging again.
+export function pendingKundaliCheckout(token: string | null) {
+  return api<{ pending: null | { payment_id: string; birth: GenerateBody } }>(
+    '/kundali/checkout/pending',
+    { token },
+  );
+}
+
+export function generateKundali(
+  body: GenerateBody,
+  payment: GeneratePayment | { payment_id: string } | null,
+  token: string | null,
+) {
+  return api<Kundali>('/kundali/generate', {
+    method: 'POST',
+    body: { ...body, ...(payment ?? {}) },
+    token,
+  });
 }
 
 export function getLatestKundali(token: string | null) {
