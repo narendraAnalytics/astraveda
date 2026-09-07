@@ -45,7 +45,8 @@ AGENTS.md
 
 # Throwaway prototype
 /frontend/samplefolder/
-
+/investores.txt
+/error.txt
 # Logs
 npm-debug.*
 yarn-debug.*

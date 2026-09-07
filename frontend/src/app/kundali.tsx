@@ -72,15 +72,23 @@ export default function KundaliScreen() {
   const [readingError, setReadingError] = useState<string | null>(null);
 
   const searchSeq = useRef(0);
+  const didInit = useRef(false);
 
-  // ---- initial load: show the saved chart if there is one -------------------
+  // Clerk's useUser/useAuth hand back a fresh `getToken`/`user` identity on every
+  // render — keep them in refs so effects don't re-fire (and loop) on identity change.
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+  const userRef = useRef(user);
+  userRef.current = user;
+
+  // ---- initial load: show the saved chart if there is one (runs once) -------
   useEffect(() => {
-    if (!isLoaded) return;
-    if (!isSignedIn) return;
+    if (!isLoaded || !isSignedIn || didInit.current) return;
+    didInit.current = true;
     let cancelled = false;
     (async () => {
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         const existing = await getLatestKundali(token);
         if (cancelled) return;
         setKundali(existing);
@@ -89,7 +97,7 @@ export default function KundaliScreen() {
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && e.status === 404) {
-          setName(user?.firstName ?? user?.username ?? '');
+          setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
           setPhase('form');
         } else {
           setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -100,21 +108,21 @@ export default function KundaliScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, getToken, user]);
+  }, [isLoaded, isSignedIn]);
 
   // ---- place autocomplete -------------------------------------------------
   useEffect(() => {
     if (place && placeQuery === place.label) return;
     const q = placeQuery.trim();
     if (q.length < 3) {
-      setPlaceResults([]);
+      setPlaceResults((prev) => (prev.length ? [] : prev));
       return;
     }
     const seq = ++searchSeq.current;
     setSearching(true);
     const id = setTimeout(async () => {
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         const rows = await searchPlaces(q, token);
         if (seq === searchSeq.current) setPlaceResults(rows);
       } catch {
@@ -124,7 +132,7 @@ export default function KundaliScreen() {
       }
     }, 350);
     return () => clearTimeout(id);
-  }, [placeQuery, place, getToken]);
+  }, [placeQuery, place]);
 
   const canSubmit = useMemo(
     () => name.trim().length >= 2 && !!date && (unknownTime || !!timeValue) && !!place,
@@ -137,7 +145,7 @@ export default function KundaliScreen() {
     setError(null);
     setPhase('generating');
     try {
-      const token = await getToken();
+      const token = await getTokenRef.current();
       const result = await generateKundali(
         {
           name: name.trim(),
@@ -158,21 +166,27 @@ export default function KundaliScreen() {
       setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
       setPhase('form');
     }
-  }, [canSubmit, date, place, name, unknownTime, timeValue, getToken]);
+  }, [canSubmit, date, place, name, unknownTime, timeValue]);
 
-  // ---- reading (phase 2) ------------------------------------------------
+  // ---- reading (phase 2): fetch once per kundali that has no reading yet ----
+  const readingFetchedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (phase !== 'results' || !kundali || reading || readingLoading) return;
+    if (phase !== 'results' || !kundali || reading) return;
+    if (readingFetchedFor.current === kundali.id) return;
+    readingFetchedFor.current = kundali.id;
     let cancelled = false;
     setReadingLoading(true);
     setReadingError(null);
     (async () => {
       try {
-        const token = await getToken();
+        const token = await getTokenRef.current();
         const res = await getKundaliReading(kundali.id, token);
         if (!cancelled) setReading(res.reading_en);
       } catch (e) {
-        if (!cancelled) setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
+        if (!cancelled) {
+          setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
+          readingFetchedFor.current = null; // allow a retry on next mount
+        }
       } finally {
         if (!cancelled) setReadingLoading(false);
       }
@@ -180,7 +194,7 @@ export default function KundaliScreen() {
     return () => {
       cancelled = true;
     };
-  }, [phase, kundali, reading, readingLoading, getToken]);
+  }, [phase, kundali, reading]);
 
   const startOver = useCallback(() => {
     setKundali(null);
