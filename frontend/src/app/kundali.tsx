@@ -261,20 +261,13 @@ export default function KundaliScreen() {
       const co = await createKundaliCheckout(body, token);
       setCheckout(co);
     } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        const existingId = e.data?.detail?.kundali_id;
-        if (existingId) {
-          router.replace(`/kundali?id=${existingId}`);
-          return;
-        }
-      }
       if (e instanceof ApiError && e.status === 503) {
         setError('Payments are not available right now. Please try again later.');
         return;
       }
       setError(e instanceof Error ? e.message : 'Could not start checkout');
     }
-  }, [canSubmit, buildBody, router]);
+  }, [canSubmit, buildBody]);
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {

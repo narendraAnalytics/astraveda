@@ -169,31 +169,6 @@ def _tz_offset_hours(tz_name: str, d: date, t: time) -> float:
     return off.total_seconds() / 3600 if off else 0.0
 
 
-def _find_existing_chart(
-    session: Session, user: User, *, name: str, birth_date: date, birth_time: time,
-    latitude: float, longitude: float,
-) -> Kundali | None:
-    """Same person = same name + exact birth moment + rounded location. Used to
-    avoid both duplicate rows and duplicate charges."""
-    rows = session.exec(
-        select(Kundali).where(
-            Kundali.user_id == user.id,
-            Kundali.birth_date == birth_date,
-            Kundali.birth_time == birth_time,
-        )
-    ).all()
-    return next(
-        (
-            k
-            for k in rows
-            if k.name.strip().lower() == name.strip().lower()
-            and round(k.latitude, 2) == round(latitude, 2)
-            and round(k.longitude, 2) == round(longitude, 2)
-        ),
-        None,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -218,25 +193,18 @@ async def kundali_checkout(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> CheckoutOut:
-    """Create a ₹15 Razorpay order for one Kundali. 409 (with the existing id)
-    if this exact chart already exists, so the user is never charged twice."""
+    """Create a ₹15 Razorpay order for one Kundali. Every generation is paid —
+    there is no per-person de-dupe."""
     settings = get_settings()
     if not payments.is_configured():
         raise HTTPException(status_code=503, detail="Payments are not configured")
 
-    birth_time = time(12, 0) if body.unknown_time else body.birth_time
-
-    match = _find_existing_chart(
-        session, user, name=body.name, birth_date=body.birth_date, birth_time=birth_time,
-        latitude=body.latitude, longitude=body.longitude,
-    )
-    if match is not None:
-        raise HTTPException(status_code=409, detail={"kundali_id": str(match.id)})
-
     snapshot = body.birth_fields()
 
     # Reuse an unconsumed order for the identical birth snapshot (double-tap /
-    # returned to the form) instead of opening a second Razorpay order.
+    # returned to the form before paying) instead of opening a second order.
+    # This is NOT per-person de-dupe: a consumed order never matches, so a repeat
+    # chart of the same person still costs ₹15.
     pending = session.exec(
         select(Payment).where(
             Payment.user_id == user.id,
@@ -411,16 +379,10 @@ async def generate_kundali(
     place = body.birth_place.strip()
     relation = body.relation if body.relation in RELATIONS else None
 
-    # De-dupe: regenerating the same person updates their chart in place instead
-    # of piling up copies. Match on name + exact birth moment + rounded location.
-    row = _find_existing_chart(
-        session, user, name=name, birth_date=body.birth_date, birth_time=birth_time,
-        latitude=body.latitude, longitude=body.longitude,
-    )
-
-    if row is None:
-        row = Kundali(user_id=user.id)
-        session.add(row)
+    # Every generation is a fresh chart — one paid ₹15 order, one new row.
+    # (An idempotent retry of the *same* payment is handled above.)
+    row = Kundali(user_id=user.id)
+    session.add(row)
 
     row.name = name
     row.relation = relation or row.relation

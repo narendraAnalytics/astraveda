@@ -129,9 +129,8 @@ export type GeneratePayment = {
   razorpay_signature: string;
 };
 
-// Creates a ₹15 Razorpay order for one chart. Throws ApiError 409 with
-// { detail: { kundali_id } } if that exact chart already exists (no charge),
-// or 503 if payments aren't configured on the backend.
+// Creates a ₹15 Razorpay order for one chart — every generation is paid, no
+// per-person de-dupe. Throws ApiError 503 if payments aren't configured.
 export function createKundaliCheckout(body: GenerateBody, token: string | null) {
   return api<KundaliCheckout>('/kundali/checkout', { method: 'POST', body, token });
 }
