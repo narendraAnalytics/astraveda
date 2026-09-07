@@ -63,7 +63,11 @@ async def generate_reading(name: str, chart: dict) -> str:
             {"role": "user", "content": _facts(name, chart)},
         ],
         "temperature": 0.4,
-        "max_tokens": 900,
+        "max_tokens": 2048,
+        # sarvam-105b reasons by default ("medium") and can spend the whole token
+        # budget thinking, leaving content=null. We want a direct reading, so turn
+        # reasoning off.
+        "reasoning_effort": None,
     }
     headers = {
         "Authorization": f"Bearer {settings.sarvam_api_key}",
