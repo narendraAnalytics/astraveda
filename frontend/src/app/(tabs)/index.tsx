@@ -32,6 +32,8 @@ import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/expo';
 
 import { LanguageSheet } from '../../components/language-sheet';
+import { useCosmicGuidance } from '../../hooks/use-cosmic-guidance';
+import type { CosmicGuidance } from '../../lib/cosmic';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -269,12 +271,46 @@ function HeroCarousel() {
   );
 }
 
-const insights = [
-  { labelKey: 'insights.luckyColor', value: 'Saffron Gold', icon: 'droplet', tint: '#d95f84', bg: '#fce9ee' },
-  { labelKey: 'insights.rahuKalam', value: '10:30 AM\n– 12:00 PM', icon: 'clock', tint: '#4d8de8', bg: '#eaf2ff' },
-  { labelKey: 'insights.bestTime', value: '2:15 PM\n– 3:45 PM', icon: 'sun', tint: '#39a56a', bg: '#eaf8ec' },
-  { labelKey: 'insights.todaysMantra', value: '"Om Gam\nGanapataye Namah"', icon: 'om', tint: '#8758ce', bg: '#f1eaff' },
-] as const;
+type Insight = {
+  labelKey: 'insights.luckyColor' | 'insights.rahuKalam' | 'insights.bestTime' | 'insights.todaysMantra';
+  value: string;
+  icon: string;
+  tint: string;
+  bg: string;
+};
+
+function buildInsights(g: CosmicGuidance): Insight[] {
+  return [
+    {
+      labelKey: 'insights.luckyColor',
+      value: g.lucky_color.name,
+      icon: 'droplet',
+      tint: g.lucky_color.tint,
+      bg: g.lucky_color.bg,
+    },
+    {
+      labelKey: 'insights.rahuKalam',
+      value: `${g.rahu_kalam.start}\n– ${g.rahu_kalam.end}`,
+      icon: 'clock',
+      tint: '#4d8de8',
+      bg: '#eaf2ff',
+    },
+    {
+      labelKey: 'insights.bestTime',
+      value: `${g.best_time.start}\n– ${g.best_time.end}`,
+      icon: 'sun',
+      tint: '#39a56a',
+      bg: '#eaf8ec',
+    },
+    {
+      labelKey: 'insights.todaysMantra',
+      value: `"${g.mantra.text}"`,
+      icon: 'om',
+      tint: '#8758ce',
+      bg: '#f1eaff',
+    },
+  ];
+}
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -289,6 +325,9 @@ export default function HomeScreen() {
     const date = new Date();
     return date.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' });
   }, []);
+
+  const { data: cosmic } = useCosmicGuidance();
+  const insights = useMemo(() => buildInsights(cosmic), [cosmic]);
 
   const router = useRouter();
   const { user, isSignedIn } = useUser();
@@ -385,9 +424,9 @@ export default function HomeScreen() {
         >
           <View style={styles.sunCircle}><Ionicons name="sunny-outline" size={26} color="#c37b21" /></View>
           <View style={styles.morningCopy}>
-            <Text style={styles.morningTitle}>{t('home.blessingTitle')}</Text>
-            <Text style={styles.morningBody}>{t('home.blessingBody')}</Text>
-            {showMorning && <Text style={styles.morningReveal}>{t('home.blessingReveal')}</Text>}
+            <Text style={styles.morningTitle}>{cosmic.blessing.title}</Text>
+            <Text style={styles.morningBody}>{cosmic.blessing.body}</Text>
+            {showMorning && <Text style={styles.morningReveal}>{cosmic.blessing.reveal}</Text>}
           </View>
           <Feather name={showMorning ? 'chevron-up' : 'chevron-down'} size={18} color="#a77a59" />
         </Pressable>
@@ -397,7 +436,25 @@ export default function HomeScreen() {
             <Feather name="sun" size={17} color="#aa6a28" />
             <Text style={styles.sectionTitle}>{t('home.cosmicGuidance')}</Text>
           </View>
-          <Pressable onPress={() => Alert.alert(t('home.cosmicGuidance'), 'A fuller daily reading will unfold as you explore AstraVeda.')}>
+          <Pressable
+            onPress={() =>
+              Alert.alert(
+                `${cosmic.weekday} · ${cosmic.planet}`,
+                [
+                  cosmic.tithi && `Tithi: ${cosmic.tithi}`,
+                  cosmic.nakshatra && `Nakshatra: ${cosmic.nakshatra}`,
+                  `Sunrise ${cosmic.sunrise} · Sunset ${cosmic.sunset}`,
+                  `Rahu Kalam: ${cosmic.rahu_kalam.start} – ${cosmic.rahu_kalam.end}`,
+                  `Gulika Kalam: ${cosmic.gulika_kalam.start} – ${cosmic.gulika_kalam.end}`,
+                  `Yamaganda: ${cosmic.yamaganda.start} – ${cosmic.yamaganda.end}`,
+                  `${cosmic.best_time.label}: ${cosmic.best_time.start} – ${cosmic.best_time.end}`,
+                  cosmic.approximate && '\nTimings are approximate until your location is available.',
+                ]
+                  .filter(Boolean)
+                  .join('\n'),
+              )
+            }
+          >
             <Text style={styles.viewDetails}>{t('common.viewDetails')} <Feather name="arrow-right" size={13} /></Text>
           </Pressable>
         </View>
@@ -480,7 +537,12 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      <LanguageSheet visible={showLanguage} onClose={() => setShowLanguage(false)} />
+      <LanguageSheet
+        visible={showLanguage}
+        signedIn={!!isSignedIn}
+        onRequestSignIn={() => router.push('/(tabs)/profile')}
+        onClose={() => setShowLanguage(false)}
+      />
     </View>
   );
 }

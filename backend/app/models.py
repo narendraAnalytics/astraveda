@@ -19,6 +19,19 @@ class Translation(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class PanchangCache(SQLModel, table=True):
+    """Computed daily guidance ("Today's Cosmic Guidance") keyed by date + place.
+    Not user data — the home-screen widget is the same for everyone at a given
+    location. Recomputed at most once per day per rounded lat/lon."""
+
+    __tablename__ = "panchang_cache"
+
+    id: int | None = Field(default=None, primary_key=True)
+    cache_key: str = Field(index=True, unique=True)  # "2026-09-07|28.614|77.209"
+    payload: dict = Field(default_factory=dict, sa_type=JSON)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class User(SQLModel, table=True):
     """AstraVeda account. Clerk owns identity (email, auth, sessions); this row
     holds the app-specific profile and the permanent link via clerk_user_id.

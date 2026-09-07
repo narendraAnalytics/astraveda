@@ -8,7 +8,11 @@
   "language": {
     "title": "Choose your language",
     "subtitle": "The whole app updates instantly",
-    "current": "Current language"
+    "current": "Current language",
+    "lockedHint": "Sign in to explore this language",
+    "unlockTitle": "Unlock all 7 languages",
+    "unlockBody": "Sign in to read AstraVeda in Hindi, Tamil, Telugu, Marathi and Kannada.",
+    "unlockCta": "Sign in"
   },
   "menu": {
     "title": "AstraVeda menu",

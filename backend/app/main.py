@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth import _public_key
 from app.config import get_settings
 from app.db import init_db
-from app.routers import auth, kundali, palm, translate, webhooks
+from app.routers import auth, cosmic, kundali, palm, translate, webhooks
 
 settings = get_settings()
 
@@ -32,6 +32,7 @@ app.include_router(auth.router)
 app.include_router(webhooks.router)
 app.include_router(kundali.router)
 app.include_router(palm.router)
+app.include_router(cosmic.router)
 
 
 @app.get("/health")
