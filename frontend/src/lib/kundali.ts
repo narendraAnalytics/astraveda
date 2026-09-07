@@ -89,8 +89,9 @@ export type GenerateBody = {
   timezone: string;
 };
 
-export function searchPlaces(q: string, token: string | null) {
-  return api<Place[]>(`/kundali/geocode?q=${encodeURIComponent(q)}`, { token });
+// Public endpoint — no token needed (plain city lookup, no user data).
+export function searchPlaces(q: string) {
+  return api<Place[]>(`/kundali/geocode?q=${encodeURIComponent(q)}`);
 }
 
 export function generateKundali(body: GenerateBody, token: string | null) {

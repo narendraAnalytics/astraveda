@@ -107,8 +107,10 @@ def _tz_offset_hours(tz_name: str, d: date, t: time) -> float:
 @router.get("/geocode", response_model=list[PlaceOut])
 async def geocode_place(
     q: str = Query(min_length=2, max_length=120),
-    _user: User = Depends(get_current_user),
 ) -> list[PlaceOut]:
+    # No auth: this is a plain public city lookup (Open-Meteo) with no user data,
+    # and keeping it unauthenticated means the birth-place autocomplete keeps
+    # working even if a token/config issue would block the rest of the flow.
     try:
         rows = await geocode.search_places(q)
     except geocode.GeocodeError as exc:

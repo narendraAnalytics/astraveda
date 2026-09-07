@@ -10,9 +10,7 @@ import {
   View,
 } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import DateTimePicker, {
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -62,6 +60,7 @@ export default function KundaliScreen() {
   const [place, setPlace] = useState<Place | null>(null);
   const [placeQuery, setPlaceQuery] = useState('');
   const [placeResults, setPlaceResults] = useState<Place[]>([]);
+  const [placeError, setPlaceError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -120,13 +119,19 @@ export default function KundaliScreen() {
     }
     const seq = ++searchSeq.current;
     setSearching(true);
+    setPlaceError(null);
     const id = setTimeout(async () => {
       try {
-        const token = await getTokenRef.current();
-        const rows = await searchPlaces(q, token);
-        if (seq === searchSeq.current) setPlaceResults(rows);
-      } catch {
-        if (seq === searchSeq.current) setPlaceResults([]);
+        const rows = await searchPlaces(q);
+        if (seq === searchSeq.current) {
+          setPlaceResults(rows);
+          if (rows.length === 0) setPlaceError('No matching city found. Try a nearby larger city.');
+        }
+      } catch (e) {
+        if (seq === searchSeq.current) {
+          setPlaceResults([]);
+          setPlaceError(e instanceof Error ? e.message : 'City search is unavailable right now.');
+        }
       } finally {
         if (seq === searchSeq.current) setSearching(false);
       }
@@ -326,7 +331,13 @@ export default function KundaliScreen() {
                   ))}
                 </View>
               ) : null}
-              {place ? <Text style={styles.tzHint}>Timezone · {place.timezone}</Text> : null}
+              {place ? (
+                <Text style={styles.tzHint}>Timezone · {place.timezone}</Text>
+              ) : placeError ? (
+                <Text style={styles.error}>{placeError}</Text>
+              ) : placeQuery.trim().length >= 3 && !searching ? (
+                <Text style={styles.tzHint}>Pick your city from the list above.</Text>
+              ) : null}
             </Field>
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -339,6 +350,19 @@ export default function KundaliScreen() {
               <Feather name="star" size={17} color="#fff" />
               <Text style={styles.ctaText}>Generate Kundali</Text>
             </Pressable>
+            {!canSubmit ? (
+              <Text style={styles.disabledHint}>
+                {name.trim().length < 2
+                  ? 'Enter your name to continue.'
+                  : !date
+                    ? 'Select your date of birth.'
+                    : !unknownTime && !timeValue
+                      ? 'Select your time of birth (or tick “I don’t know”).'
+                      : !place
+                        ? 'Search and select your birth city.'
+                        : ''}
+              </Text>
+            ) : null}
           </Animated.View>
         </ScrollView>
       )}
@@ -349,10 +373,11 @@ export default function KundaliScreen() {
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           maximumDate={new Date()}
-          onChange={(e: DateTimePickerEvent, d?: Date) => {
-            setShowDatePicker(Platform.OS === 'ios');
-            if (e.type === 'set' && d) setDate(d);
+          onValueChange={(_e, d) => {
+            if (Platform.OS !== 'ios') setShowDatePicker(false);
+            if (d) setDate(d);
           }}
+          onDismiss={() => setShowDatePicker(false)}
         />
       ) : null}
       {showTimePicker ? (
@@ -360,10 +385,11 @@ export default function KundaliScreen() {
           value={timeValue ?? new Date(2000, 0, 1, 6, 0)}
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(e: DateTimePickerEvent, d?: Date) => {
-            setShowTimePicker(Platform.OS === 'ios');
-            if (e.type === 'set' && d) setTimeValue(d);
+          onValueChange={(_e, d) => {
+            if (Platform.OS !== 'ios') setShowTimePicker(false);
+            if (d) setTimeValue(d);
           }}
+          onDismiss={() => setShowTimePicker(false)}
         />
       ) : null}
     </View>
@@ -576,6 +602,7 @@ const styles = StyleSheet.create({
   },
   ctaDisabled: { backgroundColor: '#d8c3ec', shadowOpacity: 0 },
   ctaText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  disabledHint: { fontSize: 11, color: '#9b7663', textAlign: 'center', marginTop: 8 },
 
   genName: { marginTop: 30, fontSize: 14, fontWeight: '600', color: '#6e4a33' },
 

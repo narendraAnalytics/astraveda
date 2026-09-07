@@ -8,6 +8,8 @@ guarantees a Neon row exists even if the Clerk webhook was slow or dropped.
 
 from __future__ import annotations
 
+import re
+import textwrap
 from datetime import datetime
 
 import jwt
@@ -28,14 +30,23 @@ class ClerkClaims(dict):
 
 
 def _public_key() -> str:
-    key = settings.clerk_jwt_key.strip()
-    if not key:
+    """Return a canonical PEM public key from CLERK_JWT_KEY, tolerating the many
+    ways it gets pasted into an env var: real newlines, literal ``\\n``, no
+    newlines at all (headers + base64 on one line separated by spaces), or the
+    bare base64 body with no PEM header."""
+    raw = settings.clerk_jwt_key.strip()
+    if not raw:
         raise HTTPException(status_code=500, detail="CLERK_JWT_KEY is not configured")
-    # Allow pasting the key with literal \n or without the PEM header.
-    key = key.replace("\\n", "\n")
-    if "BEGIN PUBLIC KEY" not in key:
-        key = f"-----BEGIN PUBLIC KEY-----\n{key}\n-----END PUBLIC KEY-----"
-    return key
+
+    raw = raw.replace("\\n", "\n")
+    # Strip PEM headers/footers and every kind of whitespace to get the base64 body.
+    body = re.sub(r"-----(BEGIN|END)[^-]*-----", "", raw)
+    body = re.sub(r"\s+", "", body)
+    if not body:
+        raise HTTPException(status_code=500, detail="CLERK_JWT_KEY is malformed")
+
+    wrapped = "\n".join(textwrap.wrap(body, 64))
+    return f"-----BEGIN PUBLIC KEY-----\n{wrapped}\n-----END PUBLIC KEY-----\n"
 
 
 def verify_token(token: str) -> ClerkClaims:
