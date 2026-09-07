@@ -16,7 +16,16 @@ from __future__ import annotations
 import threading
 from datetime import date, datetime, timedelta
 
-import swisseph as swe
+
+def _swe():
+    """Import pyswisseph lazily so a missing/broken native build only breaks the
+    Kundali endpoint, not the whole API (translate, auth, webhooks)."""
+    try:
+        import swisseph as swe  # noqa: PLC0415
+
+        return swe
+    except Exception as exc:  # pragma: no cover - deploy/build issue
+        raise KundaliError(f"Astrology engine unavailable (pyswisseph not loaded): {exc}") from exc
 
 # ---------------------------------------------------------------------------
 # Reference data
@@ -55,15 +64,16 @@ TITHIS = [
 ]
 WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
+# (display name, pyswisseph constant name) — resolved against the module at runtime.
 _PLANETS = [
-    ("Sun", swe.SUN),
-    ("Moon", swe.MOON),
-    ("Mars", swe.MARS),
-    ("Mercury", swe.MERCURY),
-    ("Jupiter", swe.JUPITER),
-    ("Venus", swe.VENUS),
-    ("Saturn", swe.SATURN),
-    ("Rahu", swe.MEAN_NODE),
+    ("Sun", "SUN"),
+    ("Moon", "MOON"),
+    ("Mars", "MARS"),
+    ("Mercury", "MERCURY"),
+    ("Jupiter", "JUPITER"),
+    ("Venus", "VENUS"),
+    ("Saturn", "SATURN"),
+    ("Rahu", "MEAN_NODE"),
 ]
 
 _NAK_SPAN = 360.0 / 27.0
@@ -105,7 +115,7 @@ def _dms(lon: float) -> str:
     return f"{d}°{m:02d}'"
 
 
-def _julian_day_ut(d: date, hour: float, minute: float, tz_offset: float) -> float:
+def _julian_day_ut(swe, d: date, hour: float, minute: float, tz_offset: float) -> float:
     ut = hour + minute / 60.0 - tz_offset
     return swe.julday(d.year, d.month, d.day, ut, swe.GREG_CAL)
 
@@ -123,9 +133,10 @@ def _compute_core(
     longitude: float,
     tz_offset: float,
 ) -> dict:
+    swe = _swe()
     swe.set_sid_mode(swe.SIDM_LAHIRI, 0, 0)
     flags = swe.FLG_SIDEREAL | swe.FLG_SPEED | swe.FLG_MOSEPH
-    jd = _julian_day_ut(birth_date, hour, minute, tz_offset)
+    jd = _julian_day_ut(swe, birth_date, hour, minute, tz_offset)
 
     ayanamsa = swe.get_ayanamsa_ut(jd)
 
@@ -136,7 +147,8 @@ def _compute_core(
 
     planets: list[dict] = []
     positions: dict[str, float] = {}
-    for name, code in _PLANETS:
+    for name, const_name in _PLANETS:
+        code = getattr(swe, const_name)
         (lon, _lat, _dist, speed, *_), _flag = swe.calc_ut(jd, code, flags)
         lon = _norm360(lon)
         positions[name] = lon
