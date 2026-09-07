@@ -61,7 +61,7 @@ export default function AstrologyScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 120 }}>
         <Pressable
-          onPress={() => router.push('/kundali')}
+          onPress={() => router.push({ pathname: '/kundali', params: { fresh: String(Date.now()) } })}
           style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}
         >
           <Feather name="plus" size={16} color="#fff" />

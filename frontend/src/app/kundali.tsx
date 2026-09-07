@@ -49,7 +49,7 @@ const prettyDate = (iso: string) =>
 export default function KundaliScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { id: idParam } = useLocalSearchParams<{ id?: string }>();
+  const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
 
@@ -91,7 +91,7 @@ export default function KundaliScreen() {
     setReading(null);
     setReadingError(null);
     setError(null);
-    setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
+    setName('');
     setRelation(null);
     setDate(null);
     setTimeValue(null);
@@ -102,19 +102,21 @@ export default function KundaliScreen() {
     setPhase('form');
   }, []);
 
-  // ---- load: by ?id= (view a saved chart) or fresh form (new chart) --------
+  // ---- load: by ?id= (view a saved chart) or a fresh blank form -----------
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
-    const target = idParam ?? 'new';
+    // `fresh` is a per-tap token so every "New chart" reliably resets even if
+    // this screen stayed mounted from a previous visit.
+    const target = idParam ? `id:${idParam}` : `new:${freshParam ?? '0'}`;
     if (loadedFor.current === target) return;
     loadedFor.current = target;
 
-    if (target === 'new') {
+    if (!idParam) {
       resetForm();
       return;
     }
 
-    const cached = readChartCache(target);
+    const cached = readChartCache(idParam);
     if (cached) {
       setKundali(cached);
       setReading(cached.reading_en);
@@ -127,7 +129,7 @@ export default function KundaliScreen() {
     (async () => {
       try {
         const token = await getTokenRef.current();
-        const k = await getKundali(target, token);
+        const k = await getKundali(idParam, token);
         if (cancelled) return;
         setKundali(k);
         setReading(k.reading_en);
@@ -146,7 +148,7 @@ export default function KundaliScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, idParam, resetForm]);
+  }, [isLoaded, isSignedIn, idParam, freshParam, resetForm]);
 
   // ---- place autocomplete -------------------------------------------------
   useEffect(() => {
@@ -207,7 +209,7 @@ export default function KundaliScreen() {
       setKundali(result);
       setReading(result.reading_en);
       writeChartCache(result);
-      loadedFor.current = result.id; // we're now effectively viewing this chart
+      loadedFor.current = `id:${result.id}`; // we're now effectively viewing this chart
       setPhase('results');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
@@ -251,14 +253,8 @@ export default function KundaliScreen() {
   }, []);
 
   const startOver = useCallback(() => {
-    if (idParam) {
-      // Viewing a saved chart → open a fresh create screen.
-      router.replace('/kundali');
-      return;
-    }
-    loadedFor.current = 'new';
-    resetForm();
-  }, [idParam, router, resetForm]);
+    router.replace({ pathname: '/kundali', params: { fresh: String(Date.now()) } });
+  }, [router]);
 
   // ---- guards ----------------------------------------------------------
   if (!isLoaded || phase === 'loading') {
