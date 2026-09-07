@@ -277,6 +277,7 @@ type Insight = {
   icon: string;
   tint: string;
   bg: string;
+  singleLine?: boolean;
 };
 
 function buildInsights(g: CosmicGuidance): Insight[] {
@@ -290,17 +291,19 @@ function buildInsights(g: CosmicGuidance): Insight[] {
     },
     {
       labelKey: 'insights.rahuKalam',
-      value: `${g.rahu_kalam.start}\n– ${g.rahu_kalam.end}`,
+      value: `${g.rahu_kalam.start} – ${g.rahu_kalam.end}`,
       icon: 'clock',
       tint: '#4d8de8',
       bg: '#eaf2ff',
+      singleLine: true,
     },
     {
       labelKey: 'insights.bestTime',
-      value: `${g.best_time.start}\n– ${g.best_time.end}`,
+      value: `${g.best_time.start} – ${g.best_time.end}`,
       icon: 'sun',
       tint: '#39a56a',
       bg: '#eaf8ec',
+      singleLine: true,
     },
     {
       labelKey: 'insights.todaysMantra',
@@ -474,7 +477,14 @@ export default function HomeScreen() {
                 )}
               </View>
               <Text style={styles.insightLabel}>{t(insight.labelKey)}</Text>
-              <Text style={styles.insightValue}>{insight.value}</Text>
+              <Text
+                style={styles.insightValue}
+                numberOfLines={insight.singleLine ? 1 : undefined}
+                adjustsFontSizeToFit={insight.singleLine}
+                minimumFontScale={0.8}
+              >
+                {insight.value}
+              </Text>
             </Pressable>
           ))}
         </View>
