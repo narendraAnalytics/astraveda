@@ -52,6 +52,11 @@ def _facts(name: str, chart: dict) -> str:
     return "\n".join(lines)
 
 
+def _reasoning_effort() -> str | None:
+    val = settings.sarvam_reasoning_effort.strip().lower()
+    return val if val in {"low", "medium", "high"} else None
+
+
 async def generate_reading(name: str, chart: dict) -> str:
     if not settings.sarvam_api_key:
         raise ReadingError("SARVAM_API_KEY is not configured on the server")
@@ -65,9 +70,10 @@ async def generate_reading(name: str, chart: dict) -> str:
         "temperature": 0.4,
         "max_tokens": 2048,
         # sarvam-105b reasons by default ("medium") and can spend the whole token
-        # budget thinking, leaving content=null. We want a direct reading, so turn
-        # reasoning off.
-        "reasoning_effort": None,
+        # budget thinking, leaving content=null. Default here: reasoning off (a
+        # direct reading needs no chain-of-thought). Override with
+        # SARVAM_REASONING_EFFORT=low|medium|high.
+        "reasoning_effort": _reasoning_effort(),
     }
     headers = {
         "Authorization": f"Bearer {settings.sarvam_api_key}",

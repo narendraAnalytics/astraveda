@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     sarvam_max_chars: int = 1800
     # Chat model used to turn a computed chart into a plain-language reading.
     sarvam_chat_model: str = "sarvam-105b"
+    # sarvam-105b reasons by default and can burn the whole token budget thinking
+    # (-> content=null). "" / "none" disables it (cheapest, fine for this task);
+    # or set "low" / "medium" / "high".
+    sarvam_reasoning_effort: str = ""
 
     # Open-Meteo geocoding — free, no key. Resolves a city to lat/lon/timezone.
     geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
