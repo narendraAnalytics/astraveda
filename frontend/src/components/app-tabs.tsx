@@ -1,4 +1,5 @@
 import { Tabs, usePathname } from 'expo-router';
+import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,11 +20,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const FLOWER_URL =
   'https://res.cloudinary.com/dkqbzwicr/image/upload/e_trim/w_120,h_120,c_fill/v1788604219/flower_feu0pw.png';
 
-// Bright saffron→amber bar. Opaque so scrolling content sits cleanly behind it.
-const BAR_GRADIENT = ['#c18426', '#e0a83c'] as const;
-// Active tab pops in the brand purple against the gold bar so the current
+// Frosted-glass bar: a real blur of whatever scrolls behind, warmed by a
+// translucent saffron→amber tint so the brand colour still reads through.
+const BAR_GRADIENT = ['rgba(193,132,38,0.62)', 'rgba(224,168,60,0.5)'] as const;
+// Active tab pops in a warm rose→magenta against the gold bar so the current
 // screen is unmistakable.
-const ACTIVE_PILL = '#8f29dd';
+const ACTIVE_PILL = '#e0457b';
 const ACTIVE_INK = '#ffffff';
 const INACTIVE_INK = 'rgba(255,250,242,0.92)';
 
@@ -110,12 +112,19 @@ export default function AppTabs() {
         tabBarStyle: [styles.bar, { bottom: insets.bottom + 12 }],
         tabBarItemStyle: styles.barItem,
         tabBarBackground: () => (
-          <LinearGradient
-            colors={BAR_GRADIENT}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={StyleSheet.absoluteFill}
-          />
+          <View style={StyleSheet.absoluteFill}>
+            <BlurView
+              intensity={Platform.OS === 'android' ? 40 : 28}
+              tint="light"
+              style={StyleSheet.absoluteFill}
+            />
+            <LinearGradient
+              colors={BAR_GRADIENT}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
         ),
       }}
     >
@@ -154,7 +163,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,250,242,0.28)',
+    borderColor: 'rgba(255,255,255,0.45)',
     elevation: 0,
     shadowOpacity: 0,
     shadowRadius: 0,
