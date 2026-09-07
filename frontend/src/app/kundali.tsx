@@ -173,12 +173,14 @@ export default function KundaliScreen() {
     }
   }, [canSubmit, date, place, name, unknownTime, timeValue]);
 
-  // ---- reading (phase 2): fetch once per kundali that has no reading yet ----
-  const readingFetchedFor = useRef<string | null>(null);
+  // ---- reading (phase 2): fetch once per kundali (+ once per manual retry) ---
+  const readingFetchedKey = useRef<string | null>(null);
+  const [readingNonce, setReadingNonce] = useState(0);
   useEffect(() => {
     if (phase !== 'results' || !kundali || reading) return;
-    if (readingFetchedFor.current === kundali.id) return;
-    readingFetchedFor.current = kundali.id;
+    const key = `${kundali.id}:${readingNonce}`;
+    if (readingFetchedKey.current === key) return;
+    readingFetchedKey.current = key;
     let cancelled = false;
     setReadingLoading(true);
     setReadingError(null);
@@ -188,10 +190,7 @@ export default function KundaliScreen() {
         const res = await getKundaliReading(kundali.id, token);
         if (!cancelled) setReading(res.reading_en);
       } catch (e) {
-        if (!cancelled) {
-          setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
-          readingFetchedFor.current = null; // allow a retry on next mount
-        }
+        if (!cancelled) setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
       } finally {
         if (!cancelled) setReadingLoading(false);
       }
@@ -199,7 +198,12 @@ export default function KundaliScreen() {
     return () => {
       cancelled = true;
     };
-  }, [phase, kundali, reading]);
+  }, [phase, kundali, reading, readingNonce]);
+
+  const retryReading = useCallback(() => {
+    setReadingError(null);
+    setReadingNonce((n) => n + 1);
+  }, []);
 
   const startOver = useCallback(() => {
     setKundali(null);
@@ -247,6 +251,7 @@ export default function KundaliScreen() {
           reading={reading}
           readingLoading={readingLoading}
           readingError={readingError}
+          onRetryReading={retryReading}
           onStartOver={startOver}
           bottomInset={insets.bottom + 24}
         />
@@ -414,6 +419,7 @@ function Results({
   reading,
   readingLoading,
   readingError,
+  onRetryReading,
   onStartOver,
   bottomInset,
 }: {
@@ -421,6 +427,7 @@ function Results({
   reading: string | null;
   readingLoading: boolean;
   readingError: string | null;
+  onRetryReading: () => void;
   onStartOver: () => void;
   bottomInset: number;
 }) {
@@ -504,7 +511,16 @@ function Results({
             <Text style={styles.readingHint}>Composing your personalised reading…</Text>
           </View>
         ) : (
-          <Text style={styles.error}>{readingError ?? 'Reading unavailable.'}</Text>
+          <View>
+            <Text style={styles.error}>{readingError ?? 'Reading unavailable.'}</Text>
+            <Pressable
+              onPress={onRetryReading}
+              style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}
+            >
+              <Feather name="refresh-cw" size={13} color={PURPLE} />
+              <Text style={styles.retryText}>Retry reading</Text>
+            </Pressable>
+          </View>
         )}
       </Animated.View>
 
@@ -639,6 +655,20 @@ const styles = StyleSheet.create({
   readingText: { fontSize: 13.5, lineHeight: 21, color: '#4a3a30' },
   readingLoading: { alignItems: 'center', gap: 10, paddingVertical: 14 },
   readingHint: { fontSize: 12, color: '#8b6f62' },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e3d0ef',
+    backgroundColor: '#f8f2ff',
+  },
+  retryText: { fontSize: 12, fontWeight: '700', color: PURPLE },
 
   secondary: {
     marginTop: 20,

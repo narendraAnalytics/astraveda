@@ -220,6 +220,8 @@ async def kundali_reading(
         text = await reading.generate_reading(row.name, row.chart)
     except reading.ReadingError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - never leak a bare 500 to the app
+        raise HTTPException(status_code=502, detail=f"Reading failed: {exc}") from exc
 
     row.reading_en = text
     session.add(row)

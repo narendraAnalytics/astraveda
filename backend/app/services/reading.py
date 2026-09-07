@@ -76,10 +76,20 @@ async def generate_reading(name: str, chart: dict) -> str:
         raise ReadingError(f"Sarvam request failed: {exc}") from exc
 
     if resp.status_code != 200:
-        raise ReadingError(f"Sarvam {resp.status_code}: {resp.text[:300]}")
+        raise ReadingError(f"Sarvam {resp.status_code} ({settings.sarvam_chat_model}): {resp.text[:300]}")
 
-    data = resp.json()
     try:
-        return data["choices"][0]["message"]["content"].strip()
+        data = resp.json()
+    except ValueError as exc:
+        raise ReadingError(f"Sarvam returned a non-JSON response: {resp.text[:300]}") from exc
+
+    try:
+        choice = data["choices"][0]
+        content = choice["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise ReadingError(f"Unexpected Sarvam response: {str(data)[:300]}") from exc
+
+    if not content or not content.strip():
+        reason = choice.get("finish_reason", "unknown")
+        raise ReadingError(f"Sarvam returned an empty reading (finish_reason={reason})")
+    return content.strip()
