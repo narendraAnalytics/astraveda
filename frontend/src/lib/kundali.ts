@@ -63,9 +63,13 @@ export type Chart = {
   };
 };
 
+export const RELATIONS = ['Self', 'Spouse', 'Child', 'Mother', 'Father', 'Sibling', 'Friend', 'Other'] as const;
+export type Relation = (typeof RELATIONS)[number];
+
 export type Kundali = {
   id: string;
   name: string;
+  relation: Relation | null;
   birth_date: string;
   birth_time: string;
   unknown_time: boolean;
@@ -78,8 +82,25 @@ export type Kundali = {
   created_at: string;
 };
 
+export type KundaliSummary = {
+  id: string;
+  name: string;
+  relation: Relation | null;
+  birth_date: string;
+  birth_time: string;
+  unknown_time: boolean;
+  birth_place: string;
+  lagna: string | null;
+  moon_sign: string | null;
+  nakshatra: string | null;
+  current_mahadasha: string | null;
+  has_reading: boolean;
+  created_at: string;
+};
+
 export type GenerateBody = {
   name: string;
+  relation?: Relation | null;
   birth_date: string; // YYYY-MM-DD
   birth_time: string; // HH:MM
   unknown_time: boolean;
@@ -100,6 +121,18 @@ export function generateKundali(body: GenerateBody, token: string | null) {
 
 export function getLatestKundali(token: string | null) {
   return api<Kundali>('/kundali', { token });
+}
+
+export function listKundalis(token: string | null) {
+  return api<KundaliSummary[]>('/kundali/list', { token });
+}
+
+export function getKundali(id: string, token: string | null) {
+  return api<Kundali>(`/kundali/${id}`, { token });
+}
+
+export function deleteKundali(id: string, token: string | null) {
+  return api<null>(`/kundali/${id}`, { method: 'DELETE', token });
 }
 
 export function getKundaliReading(id: string, token: string | null) {

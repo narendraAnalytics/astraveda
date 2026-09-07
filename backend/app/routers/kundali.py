@@ -38,8 +38,12 @@ class PlaceOut(BaseModel):
     timezone: str
 
 
+RELATIONS = {"Self", "Spouse", "Child", "Mother", "Father", "Sibling", "Friend", "Other"}
+
+
 class GenerateIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
+    relation: str | None = None
     birth_date: date
     birth_time: time = time(12, 0)
     unknown_time: bool = False
@@ -52,6 +56,7 @@ class GenerateIn(BaseModel):
 class KundaliOut(BaseModel):
     id: str
     name: str
+    relation: str | None
     birth_date: date
     birth_time: time
     unknown_time: bool
@@ -68,6 +73,7 @@ class KundaliOut(BaseModel):
         return cls(
             id=str(k.id),
             name=k.name,
+            relation=k.relation,
             birth_date=k.birth_date,
             birth_time=k.birth_time,
             unknown_time=k.unknown_time,
@@ -77,6 +83,45 @@ class KundaliOut(BaseModel):
             timezone=k.timezone,
             chart=k.chart,
             reading_en=k.reading_en,
+            created_at=k.created_at,
+        )
+
+
+class KundaliSummary(BaseModel):
+    """Lightweight row for the "your charts" gallery — no full chart payload."""
+
+    id: str
+    name: str
+    relation: str | None
+    birth_date: date
+    birth_time: time
+    unknown_time: bool
+    birth_place: str
+    lagna: str | None
+    moon_sign: str | None
+    nakshatra: str | None
+    current_mahadasha: str | None
+    has_reading: bool
+    created_at: datetime
+
+    @classmethod
+    def of(cls, k: Kundali) -> "KundaliSummary":
+        chart = k.chart or {}
+        ava = chart.get("avakhada", {})
+        vim = chart.get("vimshottari", {}).get("current", {})
+        return cls(
+            id=str(k.id),
+            name=k.name,
+            relation=k.relation,
+            birth_date=k.birth_date,
+            birth_time=k.birth_time,
+            unknown_time=k.unknown_time,
+            birth_place=k.birth_place,
+            lagna=(chart.get("lagna") or {}).get("sign"),
+            moon_sign=ava.get("moon_sign"),
+            nakshatra=ava.get("nakshatra"),
+            current_mahadasha=vim.get("mahadasha"),
+            has_reading=bool(k.reading_en),
             created_at=k.created_at,
         )
 
@@ -142,29 +187,56 @@ async def generate_kundali(
     except kundali_engine.KundaliError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    row = Kundali(
-        user_id=user.id,
-        name=body.name.strip(),
-        birth_date=body.birth_date,
-        birth_time=birth_time,
-        unknown_time=body.unknown_time,
-        birth_place=body.birth_place.strip(),
-        latitude=body.latitude,
-        longitude=body.longitude,
-        timezone=body.timezone,
-        tz_offset=tz_offset,
-        chart=chart,
-        raw=raw,
-    )
-    session.add(row)
+    name = body.name.strip()
+    place = body.birth_place.strip()
+    relation = body.relation if body.relation in RELATIONS else None
 
-    # Mirror the birth details onto the profile so next time is one-tap confirm.
-    user.date_of_birth = body.birth_date
-    user.birth_time = None if body.unknown_time else birth_time
-    user.birth_place = body.birth_place.strip()
-    user.timezone = body.timezone
-    user.updated_at = datetime.utcnow()
-    session.add(user)
+    # De-dupe: regenerating the same person updates their chart in place instead
+    # of piling up copies. Match on name + exact birth moment + rounded location.
+    existing = session.exec(
+        select(Kundali).where(
+            Kundali.user_id == user.id,
+            Kundali.birth_date == body.birth_date,
+            Kundali.birth_time == birth_time,
+        )
+    ).all()
+    row = next(
+        (
+            k
+            for k in existing
+            if k.name.strip().lower() == name.lower()
+            and round(k.latitude, 2) == round(body.latitude, 2)
+            and round(k.longitude, 2) == round(body.longitude, 2)
+        ),
+        None,
+    )
+
+    if row is None:
+        row = Kundali(user_id=user.id)
+        session.add(row)
+
+    row.name = name
+    row.relation = relation or row.relation
+    row.birth_date = body.birth_date
+    row.birth_time = birth_time
+    row.unknown_time = body.unknown_time
+    row.birth_place = place
+    row.latitude = body.latitude
+    row.longitude = body.longitude
+    row.timezone = body.timezone
+    row.tz_offset = tz_offset
+    row.chart = chart
+    row.raw = raw
+    # Chart is deterministic from these inputs, so an existing reading still fits.
+
+    # Mirror birth details onto the profile only for the user's own chart.
+    if relation in (None, "Self"):
+        user.date_of_birth = body.birth_date
+        user.birth_time = None if body.unknown_time else birth_time
+        user.birth_place = place
+        user.timezone = body.timezone
+        user.updated_at = datetime.utcnow()
+        session.add(user)
 
     session.commit()
     session.refresh(row)
@@ -186,6 +258,19 @@ async def latest_kundali(
     return KundaliOut.of(row)
 
 
+@router.get("/list", response_model=list[KundaliSummary])
+async def list_kundalis(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> list[KundaliSummary]:
+    rows = session.exec(
+        select(Kundali)
+        .where(Kundali.user_id == user.id)
+        .order_by(Kundali.created_at.desc())
+    ).all()
+    return [KundaliSummary.of(k) for k in rows]
+
+
 def _get_owned(session: Session, user: User, kundali_id: str) -> Kundali:
     try:
         kid = UUID(kundali_id)
@@ -204,6 +289,17 @@ async def get_kundali(
     session: Session = Depends(get_session),
 ) -> KundaliOut:
     return KundaliOut.of(_get_owned(session, user, kundali_id))
+
+
+@router.delete("/{kundali_id}", status_code=204)
+async def delete_kundali(
+    kundali_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> None:
+    row = _get_owned(session, user, kundali_id)
+    session.delete(row)
+    session.commit()
 
 
 @router.post("/{kundali_id}/reading", response_model=ReadingOut)

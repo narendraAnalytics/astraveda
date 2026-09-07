@@ -61,6 +61,7 @@ class Kundali(SQLModel, table=True):
 
     # Birth details as entered.
     name: str
+    relation: str | None = None  # Self | Spouse | Child | Mother | Father | Sibling | Friend | Other
     birth_date: date
     birth_time: time
     unknown_time: bool = False

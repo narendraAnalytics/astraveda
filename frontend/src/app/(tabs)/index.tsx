@@ -315,7 +315,7 @@ export default function HomeScreen() {
   const openTool = async (tool: Tool) => {
     await Haptics.selectionAsync();
     if (tool.key === 'kundli') {
-      router.push(isSignedIn ? '/kundali' : '/(tabs)/profile');
+      router.push(isSignedIn ? '/(tabs)/astrology' : '/(tabs)/profile');
       return;
     }
     Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [

@@ -14,20 +14,22 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { Redirect, Stack, useRouter } from 'expo-router';
+import { Redirect, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth, useUser } from '@clerk/expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ApiError } from '../lib/api';
 import {
   generateKundali,
+  getKundali,
   getKundaliReading,
-  getLatestKundali,
+  RELATIONS,
   searchPlaces,
   type Kundali,
   type Place,
+  type Relation,
 } from '../lib/kundali';
-import { readKundaliCache, writeKundaliCache } from '../lib/kundali-cache';
+import { readChartCache, writeChartCache } from '../lib/kundali-cache';
 import { CosmicLoader } from '../components/kundali/cosmic-loader';
 import { NorthIndianChart } from '../components/kundali/north-indian-chart';
 import { DashaTimeline } from '../components/kundali/dasha-timeline';
@@ -46,6 +48,7 @@ const prettyDate = (iso: string) =>
 export default function KundaliScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { id: idParam } = useLocalSearchParams<{ id?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
 
@@ -55,6 +58,7 @@ export default function KundaliScreen() {
 
   // Form state
   const [name, setName] = useState('');
+  const [relation, setRelation] = useState<Relation | null>(null);
   const [date, setDate] = useState<Date | null>(null);
   const [timeValue, setTimeValue] = useState<Date | null>(null);
   const [unknownTime, setUnknownTime] = useState(false);
@@ -72,7 +76,7 @@ export default function KundaliScreen() {
   const [readingError, setReadingError] = useState<string | null>(null);
 
   const searchSeq = useRef(0);
-  const didInit = useRef(false);
+  const loadedFor = useRef<string | null>(null);
 
   // Clerk's useUser/useAuth hand back a fresh `getToken`/`user` identity on every
   // render — keep them in refs so effects don't re-fire (and loop) on identity change.
@@ -81,45 +85,67 @@ export default function KundaliScreen() {
   const userRef = useRef(user);
   userRef.current = user;
 
-  // ---- initial load: cached chart instantly, then revalidate (runs once) ---
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn || didInit.current) return;
-    didInit.current = true;
+  const resetForm = useCallback(() => {
+    setKundali(null);
+    setReading(null);
+    setReadingError(null);
+    setError(null);
+    setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
+    setRelation(null);
+    setDate(null);
+    setTimeValue(null);
+    setUnknownTime(false);
+    setPlace(null);
+    setPlaceQuery('');
+    setPlaceResults([]);
+    setPhase('form');
+  }, []);
 
-    const cached = readKundaliCache();
+  // ---- load: by ?id= (view a saved chart) or fresh form (new chart) --------
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) return;
+    const target = idParam ?? 'new';
+    if (loadedFor.current === target) return;
+    loadedFor.current = target;
+
+    if (target === 'new') {
+      resetForm();
+      return;
+    }
+
+    const cached = readChartCache(target);
     if (cached) {
       setKundali(cached);
       setReading(cached.reading_en);
       setPhase('results');
+    } else {
+      setPhase('loading');
     }
 
     let cancelled = false;
     (async () => {
       try {
         const token = await getTokenRef.current();
-        const existing = await getLatestKundali(token);
+        const k = await getKundali(target, token);
         if (cancelled) return;
-        setKundali(existing);
-        setReading(existing.reading_en);
-        writeKundaliCache(existing);
+        setKundali(k);
+        setReading(k.reading_en);
+        writeChartCache(k);
         setPhase('results');
       } catch (e) {
-        if (cancelled) return;
+        if (cancelled || cached) return;
         if (e instanceof ApiError && e.status === 404) {
-          if (!cached) {
-            setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
-            setPhase('form');
-          }
-        } else if (!cached) {
-          setError(e instanceof Error ? e.message : 'Something went wrong');
-          setPhase('form');
+          setError('That chart could not be found.');
+        } else {
+          setError(e instanceof Error ? e.message : 'Could not load this chart');
         }
+        resetForm();
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, idParam, resetForm]);
 
   // ---- place autocomplete -------------------------------------------------
   useEffect(() => {
@@ -166,6 +192,7 @@ export default function KundaliScreen() {
       const result = await generateKundali(
         {
           name: name.trim(),
+          relation,
           birth_date: toISODate(date),
           birth_time: unknownTime || !timeValue ? '12:00' : toHM(timeValue),
           unknown_time: unknownTime,
@@ -178,13 +205,14 @@ export default function KundaliScreen() {
       );
       setKundali(result);
       setReading(result.reading_en);
-      writeKundaliCache(result);
+      writeChartCache(result);
+      loadedFor.current = result.id; // we're now effectively viewing this chart
       setPhase('results');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
       setPhase('form');
     }
-  }, [canSubmit, date, place, name, unknownTime, timeValue]);
+  }, [canSubmit, date, place, name, relation, unknownTime, timeValue]);
 
   // ---- reading (phase 2): fetch once per kundali (+ once per manual retry) ---
   const readingFetchedKey = useRef<string | null>(null);
@@ -203,7 +231,7 @@ export default function KundaliScreen() {
         const res = await getKundaliReading(kundali.id, token);
         if (!cancelled) {
           setReading(res.reading_en);
-          writeKundaliCache({ ...kundali, reading_en: res.reading_en });
+          writeChartCache({ ...kundali, reading_en: res.reading_en });
         }
       } catch (e) {
         if (!cancelled) setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
@@ -222,13 +250,14 @@ export default function KundaliScreen() {
   }, []);
 
   const startOver = useCallback(() => {
-    setKundali(null);
-    setReading(null);
-    setReadingError(null);
-    setPlace(null);
-    setPlaceQuery('');
-    setPhase('form');
-  }, []);
+    if (idParam) {
+      // Viewing a saved chart → open a fresh create screen.
+      router.replace('/kundali');
+      return;
+    }
+    loadedFor.current = 'new';
+    resetForm();
+  }, [idParam, router, resetForm]);
 
   // ---- guards ----------------------------------------------------------
   if (!isLoaded || phase === 'loading') {
@@ -251,8 +280,9 @@ export default function KundaliScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Vedic Kundali</Text>
         <Text style={styles.headerSub}>
-          Enter your birth details to generate a complete Vedic chart — Avakhada Chakra, all 16 Divisional Charts
-          (D1–D60), Nakshatra analysis and the full Vimshottari Dasha timeline with Antardasha and Pratyantara.
+          {phase === 'form'
+            ? 'Enter the birth details to generate a complete Vedic chart — Avakhada Chakra, D1–D60 divisional charts, Nakshatra analysis and the full Vimshottari Dasha timeline.'
+            : 'Avakhada Chakra · Rashi chart · Nakshatra · Vimshottari Dasha timeline.'}
         </Text>
       </LinearGradient>
 
@@ -282,9 +312,26 @@ export default function KundaliScreen() {
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="Your name"
+                placeholder="Their name"
                 placeholderTextColor="#b6a094"
               />
+            </Field>
+
+            <Field label="Whose chart is this?">
+              <View style={styles.relationWrap}>
+                {RELATIONS.map((r) => {
+                  const on = relation === r;
+                  return (
+                    <Pressable
+                      key={r}
+                      onPress={() => setRelation(on ? null : r)}
+                      style={[styles.relChip, on && styles.relChipOn]}
+                    >
+                      <Text style={[styles.relChipText, on && styles.relChipTextOn]}>{r}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </Field>
 
             <Field label="Date of birth">
@@ -463,9 +510,16 @@ function Results({
   return (
     <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: bottomInset }}>
       <Animated.View entering={FadeInDown.duration(400)} style={styles.resultHead}>
-        <Text style={styles.resultName}>{kundali.name}</Text>
+        <View style={styles.resultNameRow}>
+          <Text style={styles.resultName}>{kundali.name}</Text>
+          {kundali.relation ? (
+            <View style={styles.relResultPill}>
+              <Text style={styles.relResultPillText}>{kundali.relation}</Text>
+            </View>
+          ) : null}
+        </View>
         <Text style={styles.resultMeta}>
-          {prettyDate(kundali.birth_date)} · {kundali.unknown_time ? 'time unknown' : kundali.birth_time}
+          {prettyDate(kundali.birth_date)} · {kundali.unknown_time ? 'time unknown' : kundali.birth_time.slice(0, 5)}
         </Text>
         <Text style={styles.resultMeta}>{kundali.birth_place}</Text>
       </Animated.View>
@@ -595,6 +649,18 @@ const styles = StyleSheet.create({
   },
   checkboxOn: { backgroundColor: PURPLE, borderColor: PURPLE },
   checkLabel: { fontSize: 12, color: '#7a5a3f' },
+  relationWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  relChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 11,
+    borderWidth: 1,
+    borderColor: '#e6d5c6',
+    backgroundColor: '#fffdf9',
+  },
+  relChipOn: { backgroundColor: '#f3e8ff', borderColor: PURPLE },
+  relChipText: { fontSize: 12, fontWeight: '600', color: '#7a5a3f' },
+  relChipTextOn: { color: PURPLE },
   suggestions: {
     marginTop: 6,
     borderRadius: 12,
@@ -639,7 +705,10 @@ const styles = StyleSheet.create({
   genName: { marginTop: 30, fontSize: 14, fontWeight: '600', color: '#6e4a33' },
 
   resultHead: { marginBottom: 8 },
+  resultNameRow: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
   resultName: { fontSize: 24, fontWeight: '800', color: '#4a2f20' },
+  relResultPill: { borderRadius: 9, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#f3e8ff' },
+  relResultPillText: { fontSize: 10, fontWeight: '800', color: PURPLE, letterSpacing: 0.3 },
   resultMeta: { fontSize: 12, color: '#8b6f62', marginTop: 2 },
 
   section: {
