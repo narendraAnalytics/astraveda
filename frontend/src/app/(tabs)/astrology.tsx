@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
@@ -8,9 +8,12 @@ import { useUser } from '@clerk/expo';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKundaliList } from '../../hooks/use-kundali-list';
+import { usePalmList } from '../../hooks/use-palm-list';
 import type { KundaliSummary } from '../../lib/kundali';
+import type { PalmSummary } from '../../lib/palm';
 
 const PURPLE = '#8f29dd';
+const ROSE = '#c0356f';
 const CREAM = '#fffaf2';
 
 const RELATION_TINT: Record<string, string> = {
@@ -21,26 +24,44 @@ const RELATION_TINT: Record<string, string> = {
 const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
+type Tab = 'charts' | 'palms';
+
 export default function AstrologyScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isLoaded, isSignedIn } = useUser();
-  const { items, loading, error, reload, remove } = useKundaliList();
+  const [tab, setTab] = useState<Tab>('charts');
+
+  const kundalis = useKundaliList();
+  const palms = usePalmList();
+  const { reload: reloadKundalis, remove: removeKundali } = kundalis;
+  const { reload: reloadPalms, remove: removePalm } = palms;
 
   useFocusEffect(
     useCallback(() => {
-      reload();
-    }, [reload]),
+      reloadKundalis();
+      reloadPalms();
+    }, [reloadKundalis, reloadPalms]),
   );
 
-  const confirmDelete = useCallback(
+  const confirmDeleteChart = useCallback(
     (k: KundaliSummary) => {
       Alert.alert('Delete chart', `Remove ${k.name}'s Kundali? This can't be undone.`, [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => remove(k.id) },
+        { text: 'Delete', style: 'destructive', onPress: () => removeKundali(k.id) },
       ]);
     },
-    [remove],
+    [removeKundali],
+  );
+
+  const confirmDeletePalm = useCallback(
+    (p: PalmSummary) => {
+      Alert.alert('Delete reading', `Remove ${p.name}'s palm reading? This can't be undone.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => removePalm(p.id) },
+      ]);
+    },
+    [removePalm],
   );
 
   if (!isLoaded) {
@@ -52,88 +73,231 @@ export default function AstrologyScreen() {
   }
   if (!isSignedIn) return <Redirect href="/(tabs)/profile" />;
 
+  const accent = tab === 'charts' ? PURPLE : ROSE;
+
   return (
     <View style={styles.screen}>
-      <LinearGradient colors={['#2a1147', '#4a1c6e', '#6a2597']} style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>Your Charts</Text>
-        <Text style={styles.headerSub}>Vedic Kundalis for you and your family.</Text>
+      <LinearGradient
+        colors={tab === 'charts' ? ['#2a1147', '#4a1c6e', '#6a2597'] : ['#7a1f5c', '#c0356f', '#e2745a']}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
+        <Text style={styles.headerTitle}>{tab === 'charts' ? 'Your Charts' : 'Your Palms'}</Text>
+        <Text style={styles.headerSub}>
+          {tab === 'charts'
+            ? 'Vedic Kundalis for you and your family.'
+            : 'Hasta Samudrika palm readings you and your family.'}
+        </Text>
       </LinearGradient>
+
+      <View style={styles.segment}>
+        {(['charts', 'palms'] as Tab[]).map((t) => {
+          const on = tab === t;
+          return (
+            <Pressable key={t} onPress={() => setTab(t)} style={[styles.segBtn, on && styles.segBtnOn]}>
+              <Feather
+                name={t === 'charts' ? 'star' : 'aperture'}
+                size={14}
+                color={on ? '#fff' : '#9b7663'}
+              />
+              <Text style={[styles.segText, on && styles.segTextOn]}>{t === 'charts' ? 'Charts' : 'Palms'}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 120 }}>
         <Pressable
-          onPress={() => router.push({ pathname: '/kundali', params: { fresh: String(Date.now()) } })}
-          style={({ pressed }) => [styles.newBtn, pressed && styles.pressed]}
+          onPress={() =>
+            router.push(
+              tab === 'charts'
+                ? { pathname: '/kundali', params: { fresh: String(Date.now()) } }
+                : { pathname: '/palm', params: { fresh: String(Date.now()) } },
+            )
+          }
+          style={({ pressed }) => [styles.newBtn, { backgroundColor: accent }, pressed && styles.pressed]}
         >
           <Feather name="plus" size={16} color="#fff" />
-          <Text style={styles.newText}>New chart</Text>
+          <Text style={styles.newText}>{tab === 'charts' ? 'New chart' : 'New reading'}</Text>
         </Pressable>
 
-        {loading && items.length === 0 ? (
-          <View style={[styles.centered, { paddingVertical: 60 }]}>
-            <ActivityIndicator color={PURPLE} />
-          </View>
-        ) : items.length === 0 ? (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Feather name="star" size={26} color="#a2660f" />
-            </View>
-            <Text style={styles.emptyTitle}>No charts yet</Text>
-            <Text style={styles.emptyBody}>
-              Generate a Vedic Kundali for yourself or a family member — it’s saved here for you to
-              revisit any time.
-            </Text>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          </View>
+        {tab === 'charts' ? (
+          <ChartsList
+            items={kundalis.items}
+            loading={kundalis.loading}
+            error={kundalis.error}
+            onOpen={(id) => router.push(`/kundali?id=${id}`)}
+            onDelete={confirmDeleteChart}
+          />
         ) : (
-          <>
-            {items.map((k, i) => (
-              <Animated.View key={k.id} entering={FadeIn.delay(i * 40)}>
-                <Pressable
-                  onPress={() => router.push(`/kundali?id=${k.id}`)}
-                  onLongPress={() => confirmDelete(k)}
-                  style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
-                >
-                  <View style={styles.cardRow}>
-                    <View style={[styles.avatar, { backgroundColor: `${RELATION_TINT[k.relation ?? 'Other']}22` }]}>
-                      <Text style={[styles.avatarText, { color: RELATION_TINT[k.relation ?? 'Other'] }]}>
-                        {k.name.trim().charAt(0).toUpperCase() || '?'}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.name} numberOfLines={1}>{k.name}</Text>
-                        {k.relation ? (
-                          <View style={[styles.pill, { backgroundColor: `${RELATION_TINT[k.relation]}1a` }]}>
-                            <Text style={[styles.pillText, { color: RELATION_TINT[k.relation] }]}>{k.relation}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text style={styles.meta} numberOfLines={1}>
-                        {prettyDate(k.birth_date)}
-                        {k.unknown_time ? '' : ` · ${k.birth_time.slice(0, 5)}`} · {k.birth_place}
-                      </Text>
-                    </View>
-                    <Feather name="chevron-right" size={18} color="#c7ad97" />
-                  </View>
-
-                  <View style={styles.factRow}>
-                    {k.lagna ? <Fact label="Lagna" value={k.lagna} /> : null}
-                    {k.moon_sign ? <Fact label="Rashi" value={k.moon_sign} /> : null}
-                    {k.nakshatra ? <Fact label="Nakshatra" value={k.nakshatra} /> : null}
-                  </View>
-                  {k.current_mahadasha ? (
-                    <Text style={styles.dasha}>
-                      Running Mahadasha · <Text style={styles.dashaLord}>{k.current_mahadasha}</Text>
-                    </Text>
-                  ) : null}
-                </Pressable>
-              </Animated.View>
-            ))}
-            <Text style={styles.hint}>Long-press a chart to delete it.</Text>
-            {error ? <Text style={styles.errorText}>Showing saved copies — {error}</Text> : null}
-          </>
+          <PalmsList
+            items={palms.items}
+            loading={palms.loading}
+            error={palms.error}
+            onOpen={(id) => router.push(`/palm?id=${id}`)}
+            onDelete={confirmDeletePalm}
+          />
         )}
       </ScrollView>
+    </View>
+  );
+}
+
+function ChartsList({
+  items,
+  loading,
+  error,
+  onOpen,
+  onDelete,
+}: {
+  items: KundaliSummary[];
+  loading: boolean;
+  error: string | null;
+  onOpen: (id: string) => void;
+  onDelete: (k: KundaliSummary) => void;
+}) {
+  if (loading && items.length === 0) {
+    return (
+      <View style={[styles.centered, { paddingVertical: 60 }]}>
+        <ActivityIndicator color={PURPLE} />
+      </View>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Empty
+        icon="star"
+        tint="#a2660f"
+        bg="#fde8cf"
+        title="No charts yet"
+        body="Generate a Vedic Kundali for yourself or a family member — it’s saved here for you to revisit any time."
+        error={error}
+      />
+    );
+  }
+  return (
+    <>
+      {items.map((k, i) => (
+        <Animated.View key={k.id} entering={FadeIn.delay(i * 40)}>
+          <Pressable
+            onPress={() => onOpen(k.id)}
+            onLongPress={() => onDelete(k)}
+            style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
+          >
+            <View style={styles.cardRow}>
+              <Avatar name={k.name} tint={RELATION_TINT[k.relation ?? 'Other']} />
+              <View style={{ flex: 1 }}>
+                <NameRow name={k.name} relation={k.relation} />
+                <Text style={styles.meta} numberOfLines={1}>
+                  {prettyDate(k.birth_date)}
+                  {k.unknown_time ? '' : ` · ${k.birth_time.slice(0, 5)}`} · {k.birth_place}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#c7ad97" />
+            </View>
+            <View style={styles.factRow}>
+              {k.lagna ? <Fact label="Lagna" value={k.lagna} /> : null}
+              {k.moon_sign ? <Fact label="Rashi" value={k.moon_sign} /> : null}
+              {k.nakshatra ? <Fact label="Nakshatra" value={k.nakshatra} /> : null}
+            </View>
+            {k.current_mahadasha ? (
+              <Text style={styles.dasha}>
+                Running Mahadasha · <Text style={[styles.dashaLord, { color: PURPLE }]}>{k.current_mahadasha}</Text>
+              </Text>
+            ) : null}
+          </Pressable>
+        </Animated.View>
+      ))}
+      <Text style={styles.hint}>Long-press a chart to delete it.</Text>
+      {error ? <Text style={styles.errorText}>Showing saved copies — {error}</Text> : null}
+    </>
+  );
+}
+
+function PalmsList({
+  items,
+  loading,
+  error,
+  onOpen,
+  onDelete,
+}: {
+  items: PalmSummary[];
+  loading: boolean;
+  error: string | null;
+  onOpen: (id: string) => void;
+  onDelete: (p: PalmSummary) => void;
+}) {
+  if (loading && items.length === 0) {
+    return (
+      <View style={[styles.centered, { paddingVertical: 60 }]}>
+        <ActivityIndicator color={ROSE} />
+      </View>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Empty
+        icon="aperture"
+        tint={ROSE}
+        bg="#fdeef3"
+        title="No palm readings yet"
+        body="Answer a few questions about your hand and receive a Vedic Hasta Samudrika reading — saved here for you."
+        error={error}
+      />
+    );
+  }
+  return (
+    <>
+      {items.map((p, i) => (
+        <Animated.View key={p.id} entering={FadeIn.delay(i * 40)}>
+          <Pressable
+            onPress={() => onOpen(p.id)}
+            onLongPress={() => onDelete(p)}
+            style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
+          >
+            <View style={styles.cardRow}>
+              <Avatar name={p.name} tint={RELATION_TINT[p.relation ?? 'Other']} />
+              <View style={{ flex: 1 }}>
+                <NameRow name={p.name} relation={p.relation} />
+                <Text style={styles.meta} numberOfLines={1}>
+                  {p.headline_trait} · {p.dominant_hand} hand
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#c7ad97" />
+            </View>
+            {p.has_reading ? (
+              <View style={styles.readyRow}>
+                <Feather name="check-circle" size={11} color={ROSE} />
+                <Text style={styles.readyText}>Reading ready</Text>
+              </View>
+            ) : (
+              <Text style={styles.dasha}>Tap to open your reading</Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      ))}
+      <Text style={styles.hint}>Long-press a reading to delete it.</Text>
+      {error ? <Text style={styles.errorText}>Showing saved copies — {error}</Text> : null}
+    </>
+  );
+}
+
+function Avatar({ name, tint }: { name: string; tint: string }) {
+  return (
+    <View style={[styles.avatar, { backgroundColor: `${tint}22` }]}>
+      <Text style={[styles.avatarText, { color: tint }]}>{name.trim().charAt(0).toUpperCase() || '?'}</Text>
+    </View>
+  );
+}
+
+function NameRow({ name, relation }: { name: string; relation: string | null }) {
+  return (
+    <View style={styles.nameRow}>
+      <Text style={styles.name} numberOfLines={1}>{name}</Text>
+      {relation ? (
+        <View style={[styles.pill, { backgroundColor: `${RELATION_TINT[relation]}1a` }]}>
+          <Text style={[styles.pillText, { color: RELATION_TINT[relation] }]}>{relation}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -143,6 +307,33 @@ function Fact({ label, value }: { label: string; value: string }) {
     <View style={styles.fact}>
       <Text style={styles.factLabel}>{label}</Text>
       <Text style={styles.factValue}>{value}</Text>
+    </View>
+  );
+}
+
+function Empty({
+  icon,
+  tint,
+  bg,
+  title,
+  body,
+  error,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  tint: string;
+  bg: string;
+  title: string;
+  body: string;
+  error: string | null;
+}) {
+  return (
+    <View style={styles.empty}>
+      <View style={[styles.emptyIcon, { backgroundColor: bg }]}>
+        <Feather name={icon} size={26} color={tint} />
+      </View>
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyBody}>{body}</Text>
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 }
@@ -157,9 +348,38 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 26, fontWeight: '800', color: '#fff' },
   headerSub: { fontSize: 12, color: 'rgba(255,255,255,0.8)', marginTop: 6 },
 
+  segment: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 18,
+    marginTop: -18,
+    padding: 4,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#eeddc8',
+    shadowColor: '#8a5a2a',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  segBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 11,
+  },
+  segBtnOn: { backgroundColor: '#4a2f20' },
+  segText: { fontSize: 13, fontWeight: '700', color: '#9b7663' },
+  segTextOn: { color: '#fff' },
+
   newBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    minHeight: 46, borderRadius: 13, backgroundColor: PURPLE, marginBottom: 16,
+    minHeight: 46, borderRadius: 13, marginTop: 16, marginBottom: 16,
   },
   newText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 
@@ -181,7 +401,9 @@ const styles = StyleSheet.create({
   factLabel: { fontSize: 8.5, fontWeight: '600', color: '#9b7663' },
   factValue: { fontSize: 11, fontWeight: '700', color: '#3e2b27', marginTop: 1 },
   dasha: { fontSize: 11, color: '#7a5a3f', marginTop: 10 },
-  dashaLord: { fontWeight: '800', color: PURPLE },
+  dashaLord: { fontWeight: '800' },
+  readyRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+  readyText: { fontSize: 11, fontWeight: '700', color: ROSE },
 
   hint: { fontSize: 10, color: '#a78d7e', textAlign: 'center', marginTop: 4 },
 
@@ -190,7 +412,7 @@ const styles = StyleSheet.create({
     padding: 22, alignItems: 'center',
   },
   emptyIcon: {
-    width: 60, height: 60, borderRadius: 20, backgroundColor: '#fde8cf',
+    width: 60, height: 60, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
   emptyTitle: { fontSize: 17, fontWeight: '800', color: '#4a2f20' },

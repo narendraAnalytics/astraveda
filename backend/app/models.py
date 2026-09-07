@@ -80,3 +80,34 @@ class Kundali(SQLModel, table=True):
     reading_en: str | None = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class PalmReading(SQLModel, table=True):
+    """One guided Vedic palm reading (Hasta Samudrika Shastra) for a user.
+
+    v1 takes self-reported hand features only — no photo computer vision. The
+    structured answers are persisted here and Sarvam turns them into the
+    narrative, cached on `reading_en` so re-opening is instant.
+    """
+
+    __tablename__ = "palm_readings"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    name: str
+    relation: str | None = None  # Self | Spouse | Child | Mother | Father | Sibling | Friend | Other
+
+    dominant_hand: str  # Left | Right
+    hand_shape: str  # Earth | Air | Fire | Water
+    finger_length: str | None = None  # Short | Balanced | Long
+    thumb_flex: str | None = None  # Firm | Balanced | Flexible
+
+    lines: dict = Field(default_factory=dict, sa_type=JSON)  # {heart, head, life, fate}
+    mounts: list = Field(default_factory=list, sa_type=JSON)  # ["Jupiter", ...]
+    marks: list = Field(default_factory=list, sa_type=JSON)  # ["Fish", ...]
+    profile: dict = Field(default_factory=dict, sa_type=JSON)  # normalized facts fed to Sarvam
+
+    reading_en: str | None = None
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
