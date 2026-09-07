@@ -27,6 +27,7 @@ import {
   type Kundali,
   type Place,
 } from '../lib/kundali';
+import { readKundaliCache, writeKundaliCache } from '../lib/kundali-cache';
 import { CosmicLoader } from '../components/kundali/cosmic-loader';
 import { NorthIndianChart } from '../components/kundali/north-indian-chart';
 import { DashaTimeline } from '../components/kundali/dasha-timeline';
@@ -80,10 +81,18 @@ export default function KundaliScreen() {
   const userRef = useRef(user);
   userRef.current = user;
 
-  // ---- initial load: show the saved chart if there is one (runs once) -------
+  // ---- initial load: cached chart instantly, then revalidate (runs once) ---
   useEffect(() => {
     if (!isLoaded || !isSignedIn || didInit.current) return;
     didInit.current = true;
+
+    const cached = readKundaliCache();
+    if (cached) {
+      setKundali(cached);
+      setReading(cached.reading_en);
+      setPhase('results');
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -92,13 +101,16 @@ export default function KundaliScreen() {
         if (cancelled) return;
         setKundali(existing);
         setReading(existing.reading_en);
+        writeKundaliCache(existing);
         setPhase('results');
       } catch (e) {
         if (cancelled) return;
         if (e instanceof ApiError && e.status === 404) {
-          setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
-          setPhase('form');
-        } else {
+          if (!cached) {
+            setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
+            setPhase('form');
+          }
+        } else if (!cached) {
           setError(e instanceof Error ? e.message : 'Something went wrong');
           setPhase('form');
         }
@@ -166,6 +178,7 @@ export default function KundaliScreen() {
       );
       setKundali(result);
       setReading(result.reading_en);
+      writeKundaliCache(result);
       setPhase('results');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not generate your Kundali');
@@ -188,7 +201,10 @@ export default function KundaliScreen() {
       try {
         const token = await getTokenRef.current();
         const res = await getKundaliReading(kundali.id, token);
-        if (!cancelled) setReading(res.reading_en);
+        if (!cancelled) {
+          setReading(res.reading_en);
+          writeKundaliCache({ ...kundali, reading_en: res.reading_en });
+        }
       } catch (e) {
         if (!cancelled) setReadingError(e instanceof Error ? e.message : 'Reading unavailable right now');
       } finally {
