@@ -50,6 +50,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "sarvam_configured": bool(settings.sarvam_api_key),
+        "gemini_configured": bool(settings.gemini_api_key),
         "clerk_configured": bool(settings.clerk_jwt_key),
         "clerk_jwt_valid": clerk_jwt_valid,
         "clerk_jwt_error": clerk_jwt_error,

@@ -34,6 +34,7 @@ import {
   generatePalm,
   getPalm,
   getPalmReading,
+  scanPalm,
   type Hand,
   type HandShape,
   type LineKey,
@@ -52,12 +53,13 @@ import { PalmLoader } from '../components/palm/palm-loader';
 import { HandDiagram } from '../components/palm/hand-diagram';
 import { OptionGroup, type Option } from '../components/palm/option-card';
 import { PalmReadingView } from '../components/palm/reading-view';
+import { PalmScanner } from '../components/palm/palm-scanner';
 
 const ROSE = '#c0356f';
 const CREAM = '#fffaf2';
 const HEADER_GRADIENT = ['#7a1f5c', '#c0356f', '#e2745a'] as const;
 
-type Phase = 'loading' | 'form' | 'generating' | 'results';
+type Phase = 'loading' | 'choose' | 'scan' | 'form' | 'generating' | 'results';
 
 const HAND_OPTIONS: Option[] = HANDS.map((h) => ({ value: h, label: `${h} hand` }));
 const SHAPE_OPTIONS: Option[] = [
@@ -110,6 +112,11 @@ export default function PalmScreen() {
   const [marks, setMarks] = useState<string[]>([]);
   const [pickedPhoto, setPickedPhoto] = useState<string | null>(null);
 
+  // Scan state
+  const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const scanUriRef = useRef<string | null>(null);
+
   // Reading state
   const [reading, setReading] = useState<string | null>(null);
   const [readingLoading, setReadingLoading] = useState(false);
@@ -138,7 +145,10 @@ export default function PalmScreen() {
     setMounts([]);
     setMarks([]);
     setPickedPhoto(null);
-    setPhase('form');
+    setScanning(false);
+    setScanError(null);
+    scanUriRef.current = null;
+    setPhase('choose');
   }, []);
 
   // ---- load: by ?id= (view a saved reading) or a fresh blank form ----------
@@ -261,6 +271,37 @@ export default function PalmScreen() {
     }
   }, [canSubmit, dominantHand, handShape, name, relation, fingerLength, thumbFlex, lines, mounts, marks, pickedPhoto]);
 
+  const onScanCaptured = useCallback(
+    async (base64: string, mime: string, uri: string) => {
+      scanUriRef.current = uri;
+      setScanning(true);
+      setScanError(null);
+      try {
+        const token = await getTokenRef.current();
+        const result = await scanPalm(
+          { name: name.trim() || 'Me', relation, dominant_hand: dominantHand, image: base64, mime_type: mime },
+          token,
+        );
+        const savedPhoto = savePalmPhoto(result.id, uri);
+        setPalm(result);
+        setReading(result.reading_en);
+        setPhotoUri(savedPhoto ?? getPalmPhotoUri(result.id));
+        writePalmCache(result);
+        loadedFor.current = `id:${result.id}`;
+        setScanning(false);
+        setPhase('results');
+      } catch (e) {
+        setScanning(false);
+        if (e instanceof ApiError && e.status === 422) {
+          setScanError(e.message); // "retake" guidance from the backend
+        } else {
+          Alert.alert('Palm scan failed', e instanceof Error ? e.message : 'Please try again.');
+        }
+      }
+    },
+    [name, relation, dominantHand],
+  );
+
   // ---- reading (phase 2) -------------------------------------------------
   const readingFetchedKey = useRef<string | null>(null);
   const [readingNonce, setReadingNonce] = useState(0);
@@ -310,6 +351,28 @@ export default function PalmScreen() {
   }
   if (!isSignedIn) return <Redirect href="/(tabs)/profile" />;
 
+  if (phase === 'scan') {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#1a0c14' }}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <PalmScanner
+          analysing={scanning}
+          errorText={scanError}
+          onCaptured={onScanCaptured}
+          onRetake={() => setScanError(null)}
+          onManual={() => {
+            setScanError(null);
+            setStep(0);
+            setPhase('form');
+          }}
+        />
+        <Pressable onPress={() => setPhase('choose')} style={[styles.scanClose, { top: insets.top + 8 }]}>
+          <Feather name="x" size={22} color="#fff" />
+        </Pressable>
+      </View>
+    );
+  }
+
   const isResults = phase === 'results' && palm;
 
   return (
@@ -323,9 +386,11 @@ export default function PalmScreen() {
         </Pressable>
         <Text style={styles.headerTitle}>Palm Reading</Text>
         <Text style={styles.headerSub}>
-          {phase === 'form'
-            ? 'Hasta Samudrika Shastra — answer a few questions about your hand and receive a Vedic palm reading. No birth details needed.'
-            : 'Your hand’s nature, the four Rekhas, the mounts and their planetary rulers.'}
+          {phase === 'choose'
+            ? 'Hasta Samudrika Shastra — scan your palm, or answer a few questions. No birth details needed.'
+            : phase === 'form'
+              ? 'Answer about your hand and receive a Vedic palm reading. Not sure? Pick “Not sure” — the reading adapts.'
+              : 'Your hand’s nature, the four Rekhas, the mounts and their planetary rulers.'}
         </Text>
         {phase === 'form' ? (
           <View style={styles.dots}>
@@ -352,6 +417,65 @@ export default function PalmScreen() {
           onStartOver={startOver}
           bottomInset={insets.bottom + 28}
         />
+      ) : phase === 'choose' ? (
+        <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 40 }}>
+          <Animated.View entering={FadeInDown.duration(360)} style={styles.card}>
+            <Field label="Name">
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Whose hand is this?"
+                placeholderTextColor="#b6a094"
+              />
+            </Field>
+            <Field label="Whose reading is this?">
+              <OptionGroup
+                options={RELATION_OPTIONS}
+                value={relation}
+                onChange={(v) => setRelation((v as Relation) === relation ? null : (v as Relation))}
+                columns={3}
+              />
+            </Field>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(80).duration(360)}>
+            <Pressable
+              onPress={() => { setScanError(null); setPhase('scan'); }}
+              style={({ pressed }) => [styles.choiceCard, styles.choiceScan, pressed && styles.pressed]}
+            >
+              <View style={styles.choiceIcon}>
+                <Feather name="camera" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={styles.choiceTitleRow}>
+                  <Text style={styles.choiceTitle}>Scan my palm</Text>
+                  <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
+                </View>
+                <Text style={styles.choiceSub}>Photograph your palm — AI reads the lines and mounts for you.</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color="#fff" />
+            </Pressable>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(140).duration(360)}>
+            <Pressable
+              onPress={() => { setStep(0); setPhase('form'); }}
+              style={({ pressed }) => [styles.choiceCard, styles.choiceForm, pressed && styles.pressed]}
+            >
+              <View style={[styles.choiceIcon, styles.choiceIconForm]}>
+                <Feather name="edit-3" size={20} color={ROSE} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.choiceTitle, styles.choiceTitleDark]}>Answer questions</Text>
+                <Text style={[styles.choiceSub, styles.choiceSubDark]}>
+                  Four quick steps about your hand shape, lines and mounts.
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={ROSE} />
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
       ) : (
         <ScrollView
           keyboardShouldPersistTaps="handled"
@@ -542,9 +666,15 @@ function Results({
               <Text style={styles.relPillText}>{palm.relation}</Text>
             </View>
           ) : null}
+          {palm.source === 'scan' ? (
+            <View style={styles.scanPill}>
+              <Feather name="camera" size={9} color="#fff" />
+              <Text style={styles.scanPillText}>Scanned</Text>
+            </View>
+          ) : null}
         </View>
         <Text style={styles.resultMeta}>
-          {palm.hand_shape} hand · {palm.dominant_hand} dominant
+          {palm.hand_shape === 'Unknown' ? 'Palm reading' : `${palm.hand_shape} hand`} · {palm.dominant_hand} dominant
         </Text>
       </Animated.View>
 
@@ -633,6 +763,51 @@ const styles = StyleSheet.create({
   dotDone: { backgroundColor: 'rgba(255,255,255,0.7)' },
 
   card: { backgroundColor: '#fff', borderRadius: 20, borderWidth: 1, borderColor: '#eeddc8', padding: 16 },
+
+  scanClose: {
+    position: 'absolute',
+    right: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  choiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 13,
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 12,
+  },
+  choiceScan: {
+    backgroundColor: ROSE,
+    shadowColor: ROSE,
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  choiceForm: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f0d3e0' },
+  choiceIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  choiceIconForm: { backgroundColor: '#fdeef3' },
+  choiceTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  choiceTitle: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  choiceTitleDark: { color: '#4a2f20' },
+  choiceSub: { fontSize: 11.5, lineHeight: 16, color: 'rgba(255,255,255,0.85)', marginTop: 3 },
+  choiceSubDark: { color: '#8b6f62' },
+  aiBadge: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 },
+  aiBadgeText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.5 },
   stepTitle: { fontSize: 18, fontWeight: '800', color: '#4a2f20', marginBottom: 14 },
   stepHint: { fontSize: 12, lineHeight: 17, color: '#8b6f62', marginBottom: 12 },
   field: { marginBottom: 18 },
@@ -719,6 +894,16 @@ const styles = StyleSheet.create({
   resultName: { fontSize: 24, fontWeight: '800', color: '#4a2f20' },
   relPill: { borderRadius: 9, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#fdeef3' },
   relPillText: { fontSize: 10, fontWeight: '800', color: ROSE, letterSpacing: 0.3 },
+  scanPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 9,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: ROSE,
+  },
+  scanPillText: { fontSize: 9, fontWeight: '900', color: '#fff', letterSpacing: 0.4 },
   resultMeta: { fontSize: 12, color: '#8b6f62', marginTop: 3 },
 
   photoCard: { marginTop: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#eab9cd' },

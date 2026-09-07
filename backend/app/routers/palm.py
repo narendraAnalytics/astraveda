@@ -9,6 +9,8 @@ optional palm photo stays on the user's device.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import json
 from datetime import datetime
@@ -21,7 +23,7 @@ from sqlmodel import Session, select
 from app.auth import get_current_user
 from app.db import get_session
 from app.models import PalmReading, User
-from app.services import palm_reading
+from app.services import palm_reading, palm_vision
 
 router = APIRouter(prefix="/palm", tags=["palm"])
 
@@ -57,6 +59,14 @@ class GenerateIn(BaseModel):
     marks: list[str] = Field(default_factory=list)
 
 
+class ScanIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    relation: str | None = None
+    dominant_hand: str | None = None  # user tells us which hand they photographed
+    image: str = Field(min_length=32)  # base64 (no data: prefix)
+    mime_type: str = "image/jpeg"
+
+
 class PalmOut(BaseModel):
     id: str
     name: str
@@ -69,6 +79,7 @@ class PalmOut(BaseModel):
     mounts: list
     marks: list
     profile: dict
+    source: str
     reading_en: str | None
     created_at: datetime
 
@@ -86,6 +97,7 @@ class PalmOut(BaseModel):
             mounts=r.mounts or [],
             marks=r.marks or [],
             profile=r.profile or {},
+            source=r.source or "guided",
             reading_en=r.reading_en,
             created_at=r.created_at,
         )
@@ -100,15 +112,20 @@ class PalmSummary(BaseModel):
     dominant_hand: str
     hand_shape: str
     headline_trait: str
+    source: str
     has_reading: bool
     created_at: datetime
 
     @classmethod
     def of(cls, r: PalmReading) -> "PalmSummary":
         heart = (r.lines or {}).get("heart")
-        bits = [f"{r.hand_shape} hand"]
-        if heart and heart != "Not sure":
+        bits = []
+        if r.hand_shape and r.hand_shape != "Unknown":
+            bits.append(f"{r.hand_shape} hand")
+        if heart and heart not in ("Not sure", "not visible"):
             bits.append(f"{heart.lower()} heart line")
+        if not bits:
+            bits.append("Palm reading")
         return cls(
             id=str(r.id),
             name=r.name,
@@ -116,6 +133,7 @@ class PalmSummary(BaseModel):
             dominant_hand=r.dominant_hand,
             hand_shape=r.hand_shape,
             headline_trait=" · ".join(bits),
+            source=r.source or "guided",
             has_reading=bool(r.reading_en),
             created_at=r.created_at,
         )
@@ -131,37 +149,90 @@ class ReadingOut(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _clean_lines(raw: dict[str, str]) -> dict[str, str]:
-    return {k: str(v)[:60] for k, v in raw.items() if k in LINE_KEYS and v}
+    return {k: str(v)[:80] for k, v in raw.items() if k in LINE_KEYS and v}
 
 
-def _signature(payload: GenerateIn, lines: dict[str, str], mounts: list[str]) -> str:
+class Features(BaseModel):
+    name: str
+    relation: str | None = None
+    dominant_hand: str
+    hand_shape: str
+    finger_length: str | None = None
+    thumb_flex: str | None = None
+    lines: dict[str, str] = Field(default_factory=dict)
+    mounts: list[str] = Field(default_factory=list)
+    marks: list[str] = Field(default_factory=list)
+    source: str = "guided"
+    observations: str | None = None
+
+
+def _signature(f: Features) -> str:
     blob = json.dumps(
         {
-            "hand": payload.dominant_hand,
-            "shape": payload.hand_shape,
-            "fingers": payload.finger_length,
-            "thumb": payload.thumb_flex,
-            "lines": lines,
-            "mounts": sorted(mounts),
+            "hand": f.dominant_hand,
+            "shape": f.hand_shape,
+            "fingers": f.finger_length,
+            "thumb": f.thumb_flex,
+            "lines": f.lines,
+            "mounts": sorted(f.mounts),
         },
         sort_keys=True,
     )
     return hashlib.sha1(blob.encode()).hexdigest()
 
 
-def _build_profile(payload: GenerateIn, lines: dict[str, str], mounts: list[str], marks: list[str]) -> dict:
+def _build_profile(f: Features) -> dict:
     return {
-        "name": payload.name.strip(),
-        "dominant_hand": payload.dominant_hand,
-        "hand_shape": payload.hand_shape,
-        "hand_shape_trait": _HAND_SHAPE_TRAIT.get(payload.hand_shape, ""),
-        "finger_length": payload.finger_length,
-        "thumb_flex": payload.thumb_flex,
-        "lines": lines,
-        "mounts": mounts,
-        "marks": marks,
-        "signature": _signature(payload, lines, mounts),
+        "name": f.name.strip(),
+        "dominant_hand": f.dominant_hand,
+        "hand_shape": f.hand_shape,
+        "hand_shape_trait": _HAND_SHAPE_TRAIT.get(f.hand_shape, ""),
+        "finger_length": f.finger_length,
+        "thumb_flex": f.thumb_flex,
+        "lines": f.lines,
+        "mounts": f.mounts,
+        "marks": f.marks,
+        "observations": f.observations,
+        "source": f.source,
+        "signature": _signature(f),
     }
+
+
+def _upsert(session: Session, user: User, f: Features) -> PalmReading:
+    """Insert a new palm reading, or update the matching one in place (same
+    person + same feature signature) so regenerating doesn't pile up copies."""
+    profile = _build_profile(f)
+    name = f.name.strip()
+    existing = session.exec(select(PalmReading).where(PalmReading.user_id == user.id)).all()
+    row = next(
+        (
+            r
+            for r in existing
+            if r.name.strip().lower() == name.lower()
+            and (r.relation or None) == f.relation
+            and (r.profile or {}).get("signature") == profile["signature"]
+        ),
+        None,
+    )
+    if row is None:
+        row = PalmReading(user_id=user.id)
+        session.add(row)
+
+    row.name = name
+    row.relation = f.relation or row.relation
+    row.dominant_hand = f.dominant_hand
+    row.hand_shape = f.hand_shape
+    row.finger_length = f.finger_length
+    row.thumb_flex = f.thumb_flex
+    row.lines = f.lines
+    row.mounts = f.mounts
+    row.marks = f.marks
+    row.profile = profile
+    row.source = f.source
+
+    session.commit()
+    session.refresh(row)
+    return row
 
 
 def _get_owned(session: Session, user: User, palm_id: str) -> PalmReading:
@@ -190,65 +261,76 @@ async def generate_palm(
     if body.hand_shape not in SHAPES:
         raise HTTPException(status_code=422, detail="hand_shape must be Earth, Air, Fire or Water")
 
-    finger_length = body.finger_length if body.finger_length in FINGER_LENGTHS else None
-    thumb_flex = body.thumb_flex if body.thumb_flex in THUMB_FLEX else None
-    lines = _clean_lines(body.lines)
-    mounts = [m for m in body.mounts if m in MOUNTS][:2]
-    marks = [str(m)[:40] for m in body.marks if m][:8]
-    relation = body.relation if body.relation in RELATIONS else None
-    name = body.name.strip()
-
-    payload = GenerateIn(
-        name=name,
-        relation=relation,
+    f = Features(
+        name=body.name.strip(),
+        relation=body.relation if body.relation in RELATIONS else None,
         dominant_hand=body.dominant_hand,
         hand_shape=body.hand_shape,
-        finger_length=finger_length,
-        thumb_flex=thumb_flex,
+        finger_length=body.finger_length if body.finger_length in FINGER_LENGTHS else None,
+        thumb_flex=body.thumb_flex if body.thumb_flex in THUMB_FLEX else None,
+        lines=_clean_lines(body.lines),
+        mounts=[m for m in body.mounts if m in MOUNTS][:2],
+        marks=[str(m)[:40] for m in body.marks if m][:8],
+        source="guided",
+    )
+    return PalmOut.of(_upsert(session, user, f))
+
+
+@router.post("/scan", response_model=PalmOut)
+async def scan_palm(
+    body: ScanIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> PalmOut:
+    """Analyse a palm photo with Gemini Vision, then persist the derived features
+    (same shape as /generate). The narrative reading still comes from Sarvam via
+    POST /palm/{id}/reading. The image is not stored."""
+    raw = body.image.split(",", 1)[-1].strip()  # tolerate a data: URI prefix
+    try:
+        base64.b64decode(raw, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=422, detail="image is not valid base64") from exc
+
+    try:
+        v = await palm_vision.analyze_palm(raw, body.mime_type or "image/jpeg")
+    except palm_vision.VisionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Palm scan failed: {exc}") from exc
+
+    if not v.get("is_hand", False):
+        raise HTTPException(status_code=422, detail="That doesn't look like an open palm — please retake the photo.")
+    if v.get("image_quality") == "poor":
+        reason = v.get("retake_reason") or "the lines aren't clear enough"
+        raise HTTPException(status_code=422, detail=f"Please retake the photo — {reason}.")
+
+    def _enum(val, allowed):
+        return val if val in allowed else None
+
+    hand_shape = _enum(v.get("hand_shape"), SHAPES) or "Unknown"
+    dominant = (
+        body.dominant_hand
+        if body.dominant_hand in HANDS
+        else _enum(v.get("dominant_hand_guess"), HANDS) or "Right"
+    )
+    lines = _clean_lines(
+        {k: val for k, val in (v.get("lines") or {}).items() if val and val != "not visible"}
+    )
+
+    f = Features(
+        name=body.name.strip(),
+        relation=body.relation if body.relation in RELATIONS else None,
+        dominant_hand=dominant,
+        hand_shape=hand_shape,
+        finger_length=_enum(v.get("finger_length"), FINGER_LENGTHS),
+        thumb_flex=_enum(v.get("thumb_flex"), THUMB_FLEX),
         lines=lines,
-        mounts=mounts,
-        marks=marks,
+        mounts=[m for m in (v.get("mounts") or []) if m in MOUNTS][:3],
+        marks=[str(m)[:60] for m in (v.get("marks") or []) if m][:8],
+        source="scan",
+        observations=(str(v.get("observations"))[:600] if v.get("observations") else None),
     )
-    profile = _build_profile(payload, lines, mounts, marks)
-
-    # De-dupe: regenerating the same person + same answers updates their row
-    # instead of piling up copies.
-    existing = session.exec(
-        select(PalmReading).where(PalmReading.user_id == user.id)
-    ).all()
-    row = next(
-        (
-            r
-            for r in existing
-            if r.name.strip().lower() == name.lower()
-            and (r.relation or None) == relation
-            and (r.profile or {}).get("signature") == profile["signature"]
-        ),
-        None,
-    )
-
-    if row is None:
-        row = PalmReading(user_id=user.id)
-        session.add(row)
-    else:
-        # Answers changed enough to matter? signature already matched, so keep
-        # any existing reading; otherwise it is a fresh row above.
-        pass
-
-    row.name = name
-    row.relation = relation or row.relation
-    row.dominant_hand = body.dominant_hand
-    row.hand_shape = body.hand_shape
-    row.finger_length = finger_length
-    row.thumb_flex = thumb_flex
-    row.lines = lines
-    row.mounts = mounts
-    row.marks = marks
-    row.profile = profile
-
-    session.commit()
-    session.refresh(row)
-    return PalmOut.of(row)
+    return PalmOut.of(_upsert(session, user, f))
 
 
 @router.get("", response_model=PalmOut)

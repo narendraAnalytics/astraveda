@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Open-Meteo geocoding — free, no key. Resolves a city to lat/lon/timezone.
     geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
 
+    # Gemini (Google AI Studio) — used only for palm/face IMAGE analysis. The
+    # narrative reading still comes from Sarvam. Free-tier key is fine.
+    gemini_api_key: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_vision_model: str = "gemini-2.0-flash"
+
     @property
     def sqlalchemy_url(self) -> str:
         if not self.database_url:

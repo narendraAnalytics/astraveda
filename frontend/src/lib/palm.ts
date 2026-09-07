@@ -56,13 +56,14 @@ export type PalmReading = {
   name: string;
   relation: Relation | null;
   dominant_hand: Hand;
-  hand_shape: HandShape;
+  hand_shape: HandShape | 'Unknown';
   finger_length: string | null;
   thumb_flex: string | null;
   lines: Partial<Record<LineKey, string>>;
   mounts: Mount[];
   marks: string[];
   profile: Record<string, unknown>;
+  source: 'guided' | 'scan';
   reading_en: string | null;
   created_at: string;
 };
@@ -72,8 +73,9 @@ export type PalmSummary = {
   name: string;
   relation: Relation | null;
   dominant_hand: Hand;
-  hand_shape: HandShape;
+  hand_shape: HandShape | 'Unknown';
   headline_trait: string;
+  source: 'guided' | 'scan';
   has_reading: boolean;
   created_at: string;
 };
@@ -92,6 +94,22 @@ export type GenerateBody = {
 
 export function generatePalm(body: GenerateBody, token: string | null) {
   return api<PalmReading>('/palm/generate', { method: 'POST', body, token });
+}
+
+export type ScanBody = {
+  name: string;
+  relation?: Relation | null;
+  dominant_hand?: Hand | null;
+  image: string; // base64, no data: prefix
+  mime_type?: string;
+};
+
+/**
+ * Analyse a palm photo with Gemini Vision. A 422 means "retake the photo" —
+ * `ApiError.message` carries the reason to show the user.
+ */
+export function scanPalm(body: ScanBody, token: string | null) {
+  return api<PalmReading>('/palm/scan', { method: 'POST', body, token });
 }
 
 export function getLatestPalm(token: string | null) {

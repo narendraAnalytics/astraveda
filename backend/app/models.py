@@ -108,6 +108,8 @@ class PalmReading(SQLModel, table=True):
     marks: list = Field(default_factory=list, sa_type=JSON)  # ["Fish", ...]
     profile: dict = Field(default_factory=dict, sa_type=JSON)  # normalized facts fed to Sarvam
 
+    source: str = Field(default="guided")  # guided | scan  (how the features were captured)
+
     reading_en: str | None = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

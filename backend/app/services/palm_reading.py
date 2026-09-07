@@ -59,6 +59,11 @@ def _facts(row) -> str:
     marks = [m for m in (row.marks or []) if m and m.lower() != "none"]
     if marks:
         lines.append("Auspicious marks noticed: " + ", ".join(marks))
+    obs = (row.profile or {}).get("observations")
+    if obs:
+        lines.append(f"Analyst's overall impression of the palm photo: {obs}")
+    if (row.profile or {}).get("source") == "scan":
+        lines.append("(These features were read from a photo of the actual palm.)")
     return "\n".join(lines)
 
 

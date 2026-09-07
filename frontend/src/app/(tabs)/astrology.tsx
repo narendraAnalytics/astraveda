@@ -259,7 +259,7 @@ function PalmsList({
               <View style={{ flex: 1 }}>
                 <NameRow name={p.name} relation={p.relation} />
                 <Text style={styles.meta} numberOfLines={1}>
-                  {p.headline_trait} · {p.dominant_hand} hand
+                  {p.source === 'scan' ? '📷 Scanned · ' : ''}{p.headline_trait} · {p.dominant_hand} hand
                 </Text>
               </View>
               <Feather name="chevron-right" size={18} color="#c7ad97" />

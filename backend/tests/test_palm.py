@@ -2,11 +2,11 @@
 
 from types import SimpleNamespace
 
-from app.routers.palm import GenerateIn, _build_profile, _clean_lines, _signature
+from app.routers.palm import Features, _build_profile, _clean_lines, _signature
 from app.services.palm_reading import _facts
 
 
-def _payload(**over):
+def _features(**over):
     base = dict(
         name="Asha",
         relation="Self",
@@ -19,7 +19,7 @@ def _payload(**over):
         marks=["Fish (Matsya)"],
     )
     base.update(over)
-    return GenerateIn(**base)
+    return Features(**base)
 
 
 def test_clean_lines_drops_unknown_keys_and_blanks():
@@ -28,25 +28,23 @@ def test_clean_lines_drops_unknown_keys_and_blanks():
 
 
 def test_signature_is_order_independent_for_mounts():
-    a = _payload(mounts=["Venus", "Jupiter"])
-    b = _payload(mounts=["Jupiter", "Venus"])
-    assert _signature(a, a.lines, a.mounts) == _signature(b, b.lines, b.mounts)
+    a = _features(mounts=["Venus", "Jupiter"])
+    b = _features(mounts=["Jupiter", "Venus"])
+    assert _signature(a) == _signature(b)
 
 
 def test_signature_changes_with_answers():
-    a = _payload()
-    b = _payload(hand_shape="Fire")
-    assert _signature(a, a.lines, a.mounts) != _signature(b, b.lines, b.mounts)
+    assert _signature(_features()) != _signature(_features(hand_shape="Fire"))
 
 
 def test_build_profile_carries_signature_and_trait():
-    p = _payload()
-    prof = _build_profile(p, p.lines, p.mounts, p.marks)
-    assert prof["signature"] == _signature(p, p.lines, p.mounts)
+    f = _features()
+    prof = _build_profile(f)
+    assert prof["signature"] == _signature(f)
     assert prof["hand_shape_trait"] == "sensitive, intuitive"
 
 
-def test_facts_renders_not_sure_and_mounts():
+def test_facts_renders_not_sure_mounts_and_scan_note():
     row = SimpleNamespace(
         name="Asha",
         dominant_hand="Right",
@@ -56,10 +54,11 @@ def test_facts_renders_not_sure_and_mounts():
         lines={"heart": "Deep & long", "head": "Not sure"},
         mounts=["Venus"],
         marks=["Fish (Matsya)", "None"],
+        profile={"source": "scan", "observations": "A calm, expressive hand."},
     )
     text = _facts(row)
     assert "Heart line (Hridaya Rekha): Deep & long" in text
     assert "Head line (Mastaka Rekha): Not sure" in text
     assert "Fullest mounts: Venus" in text
-    assert "Fish (Matsya)" in text
-    assert "None" not in text.split("Auspicious marks noticed:")[-1]
+    assert "A calm, expressive hand." in text
+    assert "read from a photo" in text
