@@ -54,7 +54,7 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     colors: ['#20263f', '#3a3c66', '#7d5aa6'],
     // opaque photo → full-bleed shrine backdrop; f_auto/q_auto keeps it light
     image:
-      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,ar_1:1,c_fill,f_auto,q_auto/v1788882821/lordsiva_aezrgu.png',
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,f_auto,q_auto/v1788882821/lordsiva_aezrgu.png',
   },
   {
     id: 'tirupati',
@@ -64,6 +64,8 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     mantra: 'ॐ नमो वेङ्कटेशाय',
     tradition: 'vishnu',
     colors: ['#3a1414', '#7a1f2b', '#d1892f'],
+    image:
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,f_auto,q_auto/v1788886391/lordvenkatwara_g1589s.png',
   },
   {
     id: 'siddhivinayak',
@@ -73,6 +75,8 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     mantra: 'ॐ गं गणपतये नमः',
     tradition: 'ganesha',
     colors: ['#4a1d0e', '#a8451c', '#f0a94a'],
+    image:
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,f_auto,q_auto/v1788886643/lordganesh_ivfamn.png',
   },
   {
     id: 'vaishnodevi',
@@ -82,6 +86,8 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     mantra: 'ॐ ऐं ह्रीं क्लीं चामुण्डायै विच्चे',
     tradition: 'devi',
     colors: ['#4a0f2a', '#911a4b', '#e0658f'],
+    image:
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,f_auto,q_auto/v1788886931/mahavaishanvi_xmn7ud.png',
   },
   {
     id: 'dwarka',
@@ -91,6 +97,8 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     mantra: 'ॐ नमो भगवते वासुदेवाय',
     tradition: 'krishna',
     colors: ['#0f2740', '#1f5a86', '#5ea8c9'],
+    image:
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,f_auto,q_auto/v1788887108/lordkrishna_emrnkq.png',
   },
 ];
 
