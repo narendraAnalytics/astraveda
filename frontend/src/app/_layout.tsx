@@ -33,6 +33,10 @@ function AppShell() {
       <Stack.Screen name="dreams" />
       <Stack.Screen name="vastu" />
       <Stack.Screen name="spaces" />
+      <Stack.Screen name="temple" />
+      <Stack.Screen name="puja-book" />
+      <Stack.Screen name="puja-slip" />
+      <Stack.Screen name="puja-bookings" />
       <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
     </Stack>
   );

@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | (later: wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | puja | (later: wallet_topup …)
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -307,3 +307,70 @@ class DreamReading(SQLModel, table=True):
     payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Temple & Puja e-commerce (finalview.txt §25)
+# ---------------------------------------------------------------------------
+
+class Temple(SQLModel, table=True):
+    """A temple in the demo catalog. Seeded idempotently by init_db()."""
+
+    __tablename__ = "temples"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    slug: str = Field(index=True, unique=True)
+    name: str
+    deity: str
+    city: str
+    state: str
+    image_url: str = ""
+    about: str = ""
+    sort_order: int = 0
+    active: bool = True
+
+
+class Puja(SQLModel, table=True):
+    """A puja / seva offered at a temple. Price is per devotee, server-set."""
+
+    __tablename__ = "pujas"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    temple_id: UUID = Field(index=True, foreign_key="temples.id")
+    slug: str = Field(index=True)
+    name: str
+    description: str = ""
+    benefits: str = ""
+    price_per_person_paise: int  # ₹100–₹450 per devotee
+    daily_capacity: int = 108  # devotees per day for this puja
+    duration_note: str = ""
+    sort_order: int = 0
+    active: bool = True
+
+
+class PujaOrder(SQLModel, table=True):
+    """One puja booking. Immutable once confirmed. Amount = the puja's per-person
+    price × devotees, computed server-side (never from the client)."""
+
+    __tablename__ = "puja_orders"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+    puja_id: UUID = Field(index=True, foreign_key="pujas.id")
+    temple_id: UUID = Field(foreign_key="temples.id")
+
+    devotee_name: str
+    gotra: str | None = None
+    nakshatra: str | None = None
+    phone: str | None = None
+    num_devotees: int = 1
+    preferred_date: date
+
+    amount_paise: int
+    booking_code: str | None = Field(default=None, index=True, unique=True)
+    status: str = Field(default="created")  # created | confirmed | cancelled
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    confirmed_at: datetime | None = None
