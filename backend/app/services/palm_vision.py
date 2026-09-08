@@ -10,6 +10,7 @@ The image is never stored server-side; it lives only in this request.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
@@ -106,14 +107,30 @@ async def analyze_palm(image_b64: str, mime_type: str = "image/jpeg") -> dict:
         },
     }
 
-    try:
-        async with httpx.AsyncClient(timeout=45) as client:
-            resp = await client.post(url, json=payload)
-    except httpx.HTTPError as exc:
-        raise VisionError(f"Gemini request failed: {exc}") from exc
+    # Gemini's free tier returns 503 (model overloaded) / 500 intermittently.
+    # Retry those a couple of times server-side with a short backoff so a
+    # transient blip never reaches the user. 429 (real quota) is not retried.
+    resp = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=45) as client:
+                resp = await client.post(url, json=payload)
+        except httpx.HTTPError as exc:
+            if attempt == 2:
+                raise VisionError(f"Gemini request failed: {exc}") from exc
+            await asyncio.sleep(1.5 * (attempt + 1))
+            continue
 
+        if resp.status_code in (500, 502, 503, 529) and attempt < 2:
+            await asyncio.sleep(1.5 * (attempt + 1))
+            continue
+        break
+
+    assert resp is not None
     if resp.status_code == 429:
-        raise VisionError("Gemini free-tier rate limit hit — try again in a minute.")
+        raise VisionError("The reading service is busy right now — please try again in a minute.")
+    if resp.status_code in (500, 502, 503, 529):
+        raise VisionError("The reading service is busy right now — please try again in a moment.")
     if resp.status_code != 200:
         raise VisionError(f"Gemini {resp.status_code}: {resp.text[:300]}")
 
