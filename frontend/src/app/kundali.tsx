@@ -35,6 +35,8 @@ import {
 } from '../lib/kundali';
 import { readChartCache, writeChartCache } from '../lib/kundali-cache';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { CosmicLoader } from '../components/kundali/cosmic-loader';
 import { NorthIndianChart } from '../components/kundali/north-indian-chart';
 import { DashaTimeline } from '../components/kundali/dasha-timeline';
@@ -57,6 +59,7 @@ export default function KundaliScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [kundali, setKundali] = useState<Kundali | null>(null);
@@ -78,6 +81,7 @@ export default function KundaliScreen() {
 
   // Payment state (₹15 per chart, verified server-side)
   const [checkout, setCheckout] = useState<KundaliCheckout | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [resumable, setResumable] = useState<{ payment_id: string; birth: GenerateBody } | null>(null);
 
   // Reading state
@@ -251,23 +255,33 @@ export default function KundaliScreen() {
     [],
   );
 
+  const KUNDALI_PRICE = 1500;
+
   const onGenerate = useCallback(async () => {
-    const body = buildBody();
-    if (!canSubmit || !body) return;
+    if (!canSubmit || !buildBody()) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    try {
-      const token = await getTokenRef.current();
-      const co = await createKundaliCheckout(body, token);
-      setCheckout(co);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 503) {
-        setError('Payments are not available right now. Please try again later.');
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
-    }
+    setShowPay(true);
   }, [canSubmit, buildBody]);
+
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      const body = buildBody();
+      if (!body) return;
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createKundaliCheckout(body, token, method);
+        if (co.method === 'wallet') runGenerate({ payment_id: co.payment_id } as any, body);
+        else setCheckout(co);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [buildBody, runGenerate],
+  );
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {
@@ -548,6 +562,21 @@ export default function KundaliScreen() {
           onDismiss={() => setShowTimePicker(false)}
         />
       ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={KUNDALI_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout

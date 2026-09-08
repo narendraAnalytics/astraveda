@@ -31,6 +31,8 @@ import {
 } from '../lib/puja';
 import { useTemples } from '../hooks/use-temples';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { CapacityBar } from '../components/puja/capacity-bar';
 
 const MAROON = '#7a1f2b';
@@ -46,6 +48,7 @@ export default function PujaBookScreen() {
   const { pujaId, templeId } = useLocalSearchParams<{ pujaId?: string; templeId?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
   const { items } = useTemples();
 
   const temple = useMemo(() => items.find((t) => t.id === templeId), [items, templeId]);
@@ -66,6 +69,7 @@ export default function PujaBookScreen() {
 
   const [avail, setAvail] = useState<Availability | null>(null);
   const [checkout, setCheckout] = useState<PujaCheckout | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [resumable, setResumable] = useState<{ payment_id: string; puja_order_id: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,9 +161,14 @@ export default function PujaBookScreen() {
     [router],
   );
 
-  const startCheckout = async () => {
+  const openPay = async () => {
     if (!canBook) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setError(null);
+    setShowPay(true);
+  };
+
+  const startCheckout = async (method: 'card' | 'wallet') => {
     setBusy(true);
     setError(null);
     try {
@@ -175,12 +184,17 @@ export default function PujaBookScreen() {
           preferred_date: toISODate(date),
         },
         token,
+        method,
       );
-      setBusy(false);
-      setCheckout(co);
+      if (co.method === 'wallet') {
+        finishBooking({ payment_id: co.payment_id });
+      } else {
+        setBusy(false);
+        setCheckout(co);
+      }
     } catch (e) {
       setBusy(false);
-      if (e instanceof ApiError && e.status === 409) setError(e.message);
+      if (e instanceof ApiError && (e.status === 409 || e.status === 402)) setError(e.message);
       else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
       else setError(e instanceof Error ? e.message : 'Could not start checkout');
     }
@@ -347,7 +361,7 @@ export default function PujaBookScreen() {
           </View>
           <Pressable
             disabled={!canBook}
-            onPress={startCheckout}
+            onPress={openPay}
             style={({ pressed }) => [styles.cta, !canBook && styles.ctaOff, pressed && { opacity: 0.7 }]}
           >
             <Feather name="check" size={16} color="#fff" />
@@ -369,6 +383,21 @@ export default function PujaBookScreen() {
           onDismiss={() => setShowDate(false)}
         />
       ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={total}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout
