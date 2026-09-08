@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     # narrative reading still comes from Sarvam. Free-tier key is fine.
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_vision_model: str = "gemini-2.5-flash"
+    # gemini-2.5-flash is deprecated (retires 2026-10-16). gemini-3.6-flash is
+    # the current stable multimodal Flash model with a free tier.
+    gemini_vision_model: str = "gemini-3.6-flash"
 
     # Razorpay — payments. Test-mode keys locally; live keys in the same vars on
     # Render. Webhook secret is generated in the Razorpay dashboard when you add
