@@ -10,13 +10,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKundaliList } from '../../hooks/use-kundali-list';
 import { usePalmList } from '../../hooks/use-palm-list';
 import { useFaceList } from '../../hooks/use-face-list';
+import { useAuraList } from '../../hooks/use-aura-list';
 import type { KundaliSummary } from '../../lib/kundali';
 import type { PalmSummary } from '../../lib/palm';
 import type { FaceSummary } from '../../lib/face';
+import type { AuraSummary } from '../../lib/aura';
 
 const PURPLE = '#8f29dd';
 const ROSE = '#c0356f';
 const TEAL = '#0f8a7e';
+const VIOLET = '#7c3aed';
 const CREAM = '#fffaf2';
 
 const RELATION_TINT: Record<string, string> = {
@@ -27,7 +30,7 @@ const RELATION_TINT: Record<string, string> = {
 const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
-type Tab = 'charts' | 'palms' | 'faces';
+type Tab = 'charts' | 'palms' | 'faces' | 'auras';
 
 export default function AstrologyScreen() {
   const insets = useSafeAreaInsets();
@@ -38,16 +41,19 @@ export default function AstrologyScreen() {
   const kundalis = useKundaliList();
   const palms = usePalmList();
   const faces = useFaceList();
+  const auras = useAuraList();
   const { reload: reloadKundalis, remove: removeKundali } = kundalis;
   const { reload: reloadPalms, remove: removePalm } = palms;
   const { reload: reloadFaces, remove: removeFace } = faces;
+  const { reload: reloadAuras, remove: removeAura } = auras;
 
   useFocusEffect(
     useCallback(() => {
       reloadKundalis();
       reloadPalms();
       reloadFaces();
-    }, [reloadKundalis, reloadPalms, reloadFaces]),
+      reloadAuras();
+    }, [reloadKundalis, reloadPalms, reloadFaces, reloadAuras]),
   );
 
   const confirmDeleteChart = useCallback(
@@ -80,6 +86,16 @@ export default function AstrologyScreen() {
     [removeFace],
   );
 
+  const confirmDeleteAura = useCallback(
+    (a: AuraSummary) => {
+      Alert.alert('Delete scan', `Remove ${a.name}'s aura scan? This can't be undone.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => removeAura(a.id) },
+      ]);
+    },
+    [removeAura],
+  );
+
   if (!isLoaded) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -89,20 +105,32 @@ export default function AstrologyScreen() {
   }
   if (!isSignedIn) return <Redirect href="/(tabs)/profile" />;
 
-  const accent = tab === 'charts' ? PURPLE : tab === 'palms' ? ROSE : TEAL;
+  const accent = tab === 'charts' ? PURPLE : tab === 'palms' ? ROSE : tab === 'faces' ? TEAL : VIOLET;
   const headerColors: Record<Tab, readonly [string, string, string]> = {
     charts: ['#2a1147', '#4a1c6e', '#6a2597'],
     palms: ['#7a1f5c', '#c0356f', '#e2745a'],
     faces: ['#0c5f57', '#0f8a7e', '#3fa66b'],
+    auras: ['#3b1d63', '#7c3aed', '#c026d3'],
   };
-  const headerTitle: Record<Tab, string> = { charts: 'Your Charts', palms: 'Your Palms', faces: 'Your Faces' };
+  const headerTitle: Record<Tab, string> = {
+    charts: 'Your Charts',
+    palms: 'Your Palms',
+    faces: 'Your Faces',
+    auras: 'Your Auras',
+  };
   const headerSub: Record<Tab, string> = {
     charts: 'Vedic Kundalis for you and your family.',
     palms: 'Hasta Samudrika palm readings for you and your family.',
     faces: 'Mukha Samudrika face readings for you and your family.',
+    auras: 'AR aura & energy scans for you and your family.',
   };
-  const segIcon: Record<Tab, keyof typeof Feather.glyphMap> = { charts: 'star', palms: 'aperture', faces: 'user' };
-  const segLabel: Record<Tab, string> = { charts: 'Charts', palms: 'Palms', faces: 'Faces' };
+  const segIcon: Record<Tab, keyof typeof Feather.glyphMap> = {
+    charts: 'star',
+    palms: 'aperture',
+    faces: 'user',
+    auras: 'zap',
+  };
+  const segLabel: Record<Tab, string> = { charts: 'Charts', palms: 'Palms', faces: 'Faces', auras: 'Auras' };
 
   return (
     <View style={styles.screen}>
@@ -112,11 +140,11 @@ export default function AstrologyScreen() {
       </LinearGradient>
 
       <View style={styles.segment}>
-        {(['charts', 'palms', 'faces'] as Tab[]).map((t) => {
+        {(['charts', 'palms', 'faces', 'auras'] as Tab[]).map((t) => {
           const on = tab === t;
           return (
             <Pressable key={t} onPress={() => setTab(t)} style={[styles.segBtn, on && styles.segBtnOn]}>
-              <Feather name={segIcon[t]} size={14} color={on ? '#fff' : '#9b7663'} />
+              <Feather name={segIcon[t]} size={13} color={on ? '#fff' : '#9b7663'} />
               <Text style={[styles.segText, on && styles.segTextOn]}>{segLabel[t]}</Text>
             </Pressable>
           );
@@ -126,7 +154,8 @@ export default function AstrologyScreen() {
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 120 }}>
         <Pressable
           onPress={() => {
-            const pathname = tab === 'charts' ? '/kundali' : tab === 'palms' ? '/palm' : '/face';
+            const pathname =
+              tab === 'charts' ? '/kundali' : tab === 'palms' ? '/palm' : tab === 'faces' ? '/face' : '/aura';
             router.push({ pathname, params: { fresh: String(Date.now()) } });
           }}
           style={({ pressed }) => [styles.newBtn, { backgroundColor: accent }, pressed && styles.pressed]}
@@ -151,13 +180,21 @@ export default function AstrologyScreen() {
             onOpen={(id) => router.push(`/palm?id=${id}`)}
             onDelete={confirmDeletePalm}
           />
-        ) : (
+        ) : tab === 'faces' ? (
           <FacesList
             items={faces.items}
             loading={faces.loading}
             error={faces.error}
             onOpen={(id) => router.push(`/face?id=${id}`)}
             onDelete={confirmDeleteFace}
+          />
+        ) : (
+          <AurasList
+            items={auras.items}
+            loading={auras.loading}
+            error={auras.error}
+            onOpen={(id) => router.push(`/aura?id=${id}`)}
+            onDelete={confirmDeleteAura}
           />
         )}
       </ScrollView>
@@ -372,6 +409,74 @@ function FacesList({
   );
 }
 
+function AurasList({
+  items,
+  loading,
+  error,
+  onOpen,
+  onDelete,
+}: {
+  items: AuraSummary[];
+  loading: boolean;
+  error: string | null;
+  onOpen: (id: string) => void;
+  onDelete: (a: AuraSummary) => void;
+}) {
+  if (loading && items.length === 0) {
+    return (
+      <View style={[styles.centered, { paddingVertical: 60 }]}>
+        <ActivityIndicator color={VIOLET} />
+      </View>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Empty
+        icon="zap"
+        tint={VIOLET}
+        bg="#efe9fe"
+        title="No aura scans yet"
+        body="Take a selfie and a short energy quiz to reveal your aura colour and seven-chakra map — saved here for you."
+        error={error}
+      />
+    );
+  }
+  return (
+    <>
+      {items.map((a, i) => (
+        <Animated.View key={a.id} entering={FadeIn.delay(i * 40)}>
+          <Pressable
+            onPress={() => onOpen(a.id)}
+            onLongPress={() => onDelete(a)}
+            style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
+          >
+            <View style={styles.cardRow}>
+              <Avatar name={a.name} tint={RELATION_TINT[a.relation ?? 'Other']} />
+              <View style={{ flex: 1 }}>
+                <NameRow name={a.name} relation={a.relation} />
+                <Text style={styles.meta} numberOfLines={1}>
+                  {a.headline_trait}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#c7ad97" />
+            </View>
+            {a.has_reading ? (
+              <View style={styles.readyRow}>
+                <Feather name="check-circle" size={11} color={VIOLET} />
+                <Text style={[styles.readyText, { color: VIOLET }]}>Reading ready</Text>
+              </View>
+            ) : (
+              <Text style={styles.dasha}>Tap to open your reading</Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      ))}
+      <Text style={styles.hint}>Long-press a scan to delete it.</Text>
+      {error ? <Text style={styles.errorText}>Showing saved copies — {error}</Text> : null}
+    </>
+  );
+}
+
 function Avatar({ name, tint }: { name: string; tint: string }) {
   return (
     <View style={[styles.avatar, { backgroundColor: `${tint}22` }]}>
@@ -441,7 +546,7 @@ const styles = StyleSheet.create({
 
   segment: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     marginHorizontal: 18,
     marginTop: -18,
     padding: 4,
@@ -460,12 +565,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
     paddingVertical: 9,
+    paddingHorizontal: 2,
     borderRadius: 11,
   },
   segBtnOn: { backgroundColor: '#4a2f20' },
-  segText: { fontSize: 13, fontWeight: '700', color: '#9b7663' },
+  segText: { fontSize: 11.5, fontWeight: '700', color: '#9b7663' },
   segTextOn: { color: '#fff' },
 
   newBtn: {

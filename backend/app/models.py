@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | (later: wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | aura | (later: wallet_topup …)
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -203,6 +203,39 @@ class FaceReading(SQLModel, table=True):
     profile: dict = Field(default_factory=dict, sa_type=JSON)  # normalized facts fed to Sarvam
 
     source: str = Field(default="scan")  # scan | guided
+
+    reading_en: str | None = None
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AuraReading(SQLModel, table=True):
+    """One AR Aura & Energy Scan for a user (finalview.txt §"AR Aura & Energy Scan").
+
+    Gemini reads the selfie's colour/light into a suggested aura palette; the
+    user's short energy quiz steers the chakra map; Sarvam writes the narrative
+    (cached on `reading_en`). The selfie is never stored server-side. Every scan
+    is a paid ₹60 Razorpay order (server-authoritative).
+    """
+
+    __tablename__ = "aura_readings"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    name: str
+    relation: str | None = None
+
+    dominant_color: str  # Red | Orange | Yellow | Gold | Green | Teal | Blue | Indigo | Violet | Pink | White
+    secondary_colors: list = Field(default_factory=list, sa_type=JSON)
+
+    features: dict = Field(default_factory=dict, sa_type=JSON)  # brightness, warmth, visual_notes
+    quiz: dict = Field(default_factory=dict, sa_type=JSON)  # the 4 energy-quiz answers
+    profile: dict = Field(default_factory=dict, sa_type=JSON)  # normalized facts fed to Sarvam
+
+    source: str = Field(default="scan")
 
     reading_en: str | None = None
 

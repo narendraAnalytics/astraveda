@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     kundali_price_paise: int = 1500
     # Price of one Face Reading, in paise. ₹45 = 4500. Server-set, never from client.
     face_price_paise: int = 4500
+    # Price of one Aura Scan, in paise. ₹60 = 6000. Server-set, never from client.
+    aura_price_paise: int = 6000
 
     @property
     def sqlalchemy_url(self) -> str:

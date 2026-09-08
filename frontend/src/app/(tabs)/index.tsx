@@ -368,6 +368,10 @@ export default function HomeScreen() {
       router.push(isSignedIn ? '/face' : '/(tabs)/profile');
       return;
     }
+    if (tool.key === 'aura') {
+      router.push(isSignedIn ? '/aura' : '/(tabs)/profile');
+      return;
+    }
     Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [
       { text: t('common.keepExploring'), style: 'cancel' },
       { text: t('tools.startReading'), onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },
