@@ -69,6 +69,19 @@ function GradientHeading({ text, id }: { text: string; id: string }) {
   );
 }
 
+/** First paragraph of the whole reading gets an illuminated drop-cap. */
+function Paragraph({ text, dropCap }: { text: string; dropCap?: boolean }) {
+  if (dropCap && text.length > 1) {
+    return (
+      <Text style={styles.body}>
+        <Text style={styles.dropCap}>{text[0]}</Text>
+        {text.slice(1)}
+      </Text>
+    );
+  }
+  return <Text style={styles.body}>{text}</Text>;
+}
+
 export function PalmReadingView({ text }: { text: string }) {
   const sections = useMemo(() => parseReading(text), [text]);
 
@@ -76,13 +89,16 @@ export function PalmReadingView({ text }: { text: string }) {
     return <Text style={styles.body}>{text}</Text>;
   }
 
+  let firstParaSeen = false;
+
   return (
     <View>
       {sections.map((s, i) => {
         const key = s.heading?.toLowerCase() ?? '';
         const icon = HEADING_ICON[key] ?? 'star';
+        const paras = s.body ? s.body.split('\n\n') : [];
         return (
-          <View key={i} style={i > 0 ? styles.section : undefined}>
+          <View key={i} style={[styles.card, i > 0 && styles.cardGap]}>
             {s.heading ? (
               <View style={styles.headingRow}>
                 <LinearGradient
@@ -104,11 +120,15 @@ export function PalmReadingView({ text }: { text: string }) {
                 </View>
               </View>
             ) : null}
-            {s.body.split('\n\n').map((para, j) => (
-              <Text key={j} style={[styles.body, j > 0 && styles.bodyGap]}>
-                {para}
-              </Text>
-            ))}
+            {paras.map((para, j) => {
+              const isFirst = !firstParaSeen;
+              if (isFirst) firstParaSeen = true;
+              return (
+                <View key={j} style={j > 0 ? styles.paraGap : undefined}>
+                  <Paragraph text={para} dropCap={isFirst} />
+                </View>
+              );
+            })}
           </View>
         );
       })}
@@ -116,12 +136,27 @@ export function PalmReadingView({ text }: { text: string }) {
   );
 }
 
+const ROSE_DROP = '#c0356f';
+
 const styles = StyleSheet.create({
-  section: { marginTop: 22 },
-  headingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 10 },
+  card: {
+    backgroundColor: '#fffdfb',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f2dde4',
+    padding: 15,
+  },
+  cardGap: { marginTop: 12 },
+  headingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
   iconChip: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   headingTextWrap: { flex: 1 },
   accentBar: { height: 3, width: 46, borderRadius: 2, marginTop: 3 },
-  body: { fontSize: 15, lineHeight: 24, color: '#463a33' },
-  bodyGap: { marginTop: 12 },
+  body: { fontSize: 15, lineHeight: 25, color: '#463a33' },
+  paraGap: { marginTop: 12 },
+  dropCap: {
+    fontSize: 34,
+    lineHeight: 34,
+    fontWeight: '900',
+    color: ROSE_DROP,
+  },
 });

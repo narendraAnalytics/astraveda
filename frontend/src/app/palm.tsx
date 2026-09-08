@@ -294,8 +294,10 @@ export default function PalmScreen() {
         setScanning(false);
         if (e instanceof ApiError && e.status === 422) {
           setScanError(e.message); // "retake" guidance from the backend
+        } else if (e instanceof ApiError && e.status === 429) {
+          setScanError('The reading service is busy right now — please try again in a minute.');
         } else {
-          Alert.alert('Palm scan failed', e instanceof Error ? e.message : 'Please try again.');
+          setScanError(e instanceof Error ? e.message : 'Palm scan failed — please try again.');
         }
       }
     },
@@ -681,6 +683,16 @@ function Results({
       {photoUri ? (
         <Animated.View entering={FadeInDown.delay(60).duration(400)} style={styles.photoCard}>
           <Image source={{ uri: photoUri }} style={styles.photoLarge} />
+          <LinearGradient
+            colors={['transparent', 'rgba(26,12,20,0.55)']}
+            style={styles.photoScrim}
+          />
+          {palm.source === 'scan' ? (
+            <View style={styles.photoTag}>
+              <Feather name="camera" size={10} color="#fff" />
+              <Text style={styles.photoTagText}>Scanned palm</Text>
+            </View>
+          ) : null}
         </Animated.View>
       ) : null}
 
@@ -720,17 +732,17 @@ function Results({
         </Animated.View>
       ) : null}
 
-      <Animated.View entering={FadeInDown.delay(280).duration(400)} style={[styles.section, styles.readingSection]}>
-        <Text style={styles.sectionTitle}>Your reading</Text>
+      <Animated.View entering={FadeInDown.delay(280).duration(400)} style={styles.readingSection}>
+        <Text style={[styles.sectionTitle, styles.readingTitle]}>Your reading</Text>
         {reading ? (
           <PalmReadingView text={reading} />
         ) : readingLoading ? (
-          <View style={styles.readingLoading}>
+          <View style={[styles.readingCard, styles.readingLoading]}>
             <ActivityIndicator color={ROSE} />
             <Text style={styles.readingHint}>Composing your personalised reading…</Text>
           </View>
         ) : (
-          <View>
+          <View style={styles.readingCard}>
             <Text style={styles.error}>{readingError ?? 'Reading unavailable.'}</Text>
             <Pressable onPress={onRetryReading} style={({ pressed }) => [styles.retryBtn, pressed && styles.pressed]}>
               <Feather name="refresh-cw" size={13} color={ROSE} />
@@ -907,7 +919,21 @@ const styles = StyleSheet.create({
   resultMeta: { fontSize: 12, color: '#8b6f62', marginTop: 3 },
 
   photoCard: { marginTop: 14, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: '#eab9cd' },
-  photoLarge: { width: '100%', height: 220 },
+  photoLarge: { width: '100%', height: 240 },
+  photoScrim: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 90 },
+  photoTag: {
+    position: 'absolute',
+    left: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(192,53,111,0.92)',
+    borderRadius: 9,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  photoTagText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
 
   section: { backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#eeddc8', padding: 15, marginTop: 14 },
   sectionTitle: { fontSize: 14, fontWeight: '800', color: ROSE, marginBottom: 12, letterSpacing: 0.3 },
@@ -923,7 +949,15 @@ const styles = StyleSheet.create({
   lineName: { fontSize: 12, fontWeight: '700', color: '#4a2f20', flex: 1 },
   lineValue: { fontSize: 12, color: '#7a5a3f', textAlign: 'right', flexShrink: 1, marginLeft: 10 },
 
-  readingSection: { backgroundColor: '#fffdfb', borderColor: '#f0dbe4' },
+  readingSection: { marginTop: 18 },
+  readingTitle: { marginLeft: 4, marginBottom: 14 },
+  readingCard: {
+    backgroundColor: '#fffdfb',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f2dde4',
+    padding: 15,
+  },
   readingLoading: { alignItems: 'center', gap: 10, paddingVertical: 14 },
   readingHint: { fontSize: 12, color: '#8b6f62' },
   retryBtn: {

@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # narrative reading still comes from Sarvam. Free-tier key is fine.
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_vision_model: str = "gemini-2.0-flash"
+    gemini_vision_model: str = "gemini-2.5-flash"
 
     # Razorpay — payments. Test-mode keys locally; live keys in the same vars on
     # Render. Webhook secret is generated in the Razorpay dashboard when you add
