@@ -117,7 +117,16 @@ export function RazorpayCheckout({
             originWhitelist={['*']}
             javaScriptEnabled
             domStorageEnabled
+            // 3-D Secure / bank ACS pages need these or they hang mid-auth in a
+            // WebView: third-party cookies (Android blocks them by default),
+            // shared cookies (iOS), mixed content, and script-opened windows.
+            thirdPartyCookiesEnabled
+            sharedCookiesEnabled
+            javaScriptCanOpenWindowsAutomatically
+            mixedContentMode="always"
             setSupportMultipleWindows={false}
+            cacheEnabled={false}
+            incognito={false}
             startInLoadingState
             renderLoading={() => (
               <View style={styles.loading}>
