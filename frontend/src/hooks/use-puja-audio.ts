@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react';
-import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import { useEffect, useMemo, useRef } from 'react';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 
 import {
   AMBIENCE_DUCKED_VOLUME,
@@ -9,19 +9,37 @@ import {
   type PujaTradition,
 } from '../lib/virtual-puja';
 
+const safe = (fn: () => void) => {
+  try {
+    fn();
+  } catch {}
+};
+
+type Options = {
+  muted: boolean;
+  tradition: PujaTradition;
+  /** Devotional background track on/off. */
+  bhajanOn: boolean;
+  /** Lower the ambience under the aarti. */
+  ducked: boolean;
+};
+
 /**
- * Owns the puja audio players (sources are bundled assets, currently silent
- * placeholders). Five effect players plus one looping devotional `ambient`
- * track that swaps per temple. All calls are wrapped so a decode/playback
- * failure can never crash the screen.
+ * Owns the puja audio players (bundled synth placeholder assets). Five effect
+ * players plus one looping devotional `ambient` track that swaps per temple and
+ * is driven from its own load status (so it reliably starts once buffered).
+ * All calls are wrapped so a decode/playback failure can never crash the screen.
  */
-export function usePujaAudio(muted: boolean) {
+export function usePujaAudio({ muted, tradition, bhajanOn, ducked }: Options) {
   const bell = useAudioPlayer(PUJA_SOUNDS.bell);
   const aarti = useAudioPlayer(PUJA_SOUNDS.aarti);
   const conch = useAudioPlayer(PUJA_SOUNDS.conch);
   const chime = useAudioPlayer(PUJA_SOUNDS.chime);
   const mantra = useAudioPlayer(PUJA_SOUNDS.mantra);
-  const ambient = useAudioPlayer(PUJA_AMBIENCE.shiva);
+  // Higher updateInterval — we only watch isLoaded/playing transitions, no need
+  // for frequent status re-renders.
+  const ambient = useAudioPlayer(PUJA_AMBIENCE[tradition], { updateInterval: 800 });
+  const ambientStatus = useAudioPlayerStatus(ambient);
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'duckOthers' }).catch(
@@ -35,11 +53,6 @@ export function usePujaAudio(muted: boolean) {
         p.loop = true;
       } catch {}
     }
-    for (const p of [ambient]) {
-      try {
-        p.volume = AMBIENCE_VOLUME;
-      } catch {}
-    }
   }, [bell, aarti, mantra, ambient]);
 
   useEffect(() => {
@@ -50,14 +63,35 @@ export function usePujaAudio(muted: boolean) {
     }
   }, [muted, bell, aarti, conch, chime, mantra, ambient]);
 
-  return useMemo(() => {
-    const safe = (fn: () => void) => {
+  // Swap the ambience track when the temple's tradition changes.
+  const loadedTradition = useRef(tradition);
+  useEffect(() => {
+    if (loadedTradition.current === tradition) return;
+    loadedTradition.current = tradition;
+    safe(() => ambient.replace(PUJA_AMBIENCE[tradition]));
+  }, [tradition, ambient]);
+
+  // Start / stop the ambience from its actual load state — retries every time
+  // `isLoaded` flips true (initial buffer, and after each `replace`).
+  useEffect(() => {
+    if (bhajanOn) {
+      if (ambientStatus.isLoaded && !ambientStatus.playing) safe(() => ambient.play());
+    } else if (ambientStatus.playing) {
+      safe(() => ambient.pause());
+    }
+  }, [bhajanOn, ambientStatus.isLoaded, ambientStatus.playing, ambient]);
+
+  // Duck the ambience under the aarti.
+  useEffect(() => {
+    for (const p of [ambient]) {
       try {
-        fn();
+        p.volume = ducked ? AMBIENCE_DUCKED_VOLUME : AMBIENCE_VOLUME;
       } catch {}
-    };
+    }
+  }, [ducked, ambient, ambientStatus.isLoaded]);
+
+  return useMemo(() => {
     const restart = (p: typeof bell) => {
-      // Separate calls: a rejected seek (player still loading) must not block play.
       safe(() => p.seekTo(0));
       safe(() => p.play());
     };
@@ -68,33 +102,15 @@ export function usePujaAudio(muted: boolean) {
       stopAarti: () => safe(() => aarti.pause()),
       playConch: () => restart(conch),
       playChime: () => restart(chime),
-
-      setAmbientTradition: (tradition: PujaTradition) =>
-        safe(() => ambient.replace(PUJA_AMBIENCE[tradition])),
-      playAmbient: () => safe(() => ambient.play()),
-      stopAmbient: () => safe(() => ambient.pause()),
-      duckAmbient: (ducked: boolean) =>
-        safe(() => {
-          ambient.volume = ducked ? AMBIENCE_DUCKED_VOLUME : AMBIENCE_VOLUME;
-        }),
-
-      /** Stop the ritual effects but leave the devotional ambience playing. */
+      /** Stop the ritual effects; leaves the devotional ambience playing. */
       stopEffects: () =>
         safe(() => {
           bell.pause();
           aarti.pause();
           mantra.pause();
         }),
-      /** Stop everything, including ambience (screen teardown). */
-      stopAll: () =>
-        safe(() => {
-          bell.pause();
-          aarti.pause();
-          mantra.pause();
-          ambient.pause();
-        }),
     };
-  }, [bell, aarti, conch, chime, mantra, ambient]);
+  }, [bell, aarti, conch, chime, mantra]);
 }
 
 export type PujaAudio = ReturnType<typeof usePujaAudio>;

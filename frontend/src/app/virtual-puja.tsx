@@ -32,7 +32,12 @@ export default function VirtualPujaScreen() {
 
   const s = useVirtualPuja();
   const temple = getTemple(s.templeId);
-  const audio = usePujaAudio(s.muted);
+  const audio = usePujaAudio({
+    muted: s.muted,
+    tradition: temple.tradition,
+    bhajanOn,
+    ducked: s.aartiOn,
+  });
   const auto = useAutoPuja(audio, reduceMotion);
 
   const stageWidth = Math.min(screenWidth - 28, 420);
@@ -52,17 +57,8 @@ export default function VirtualPujaScreen() {
       .catch(() => {});
   }, []);
 
-  // Devotional background track — swap per temple, play/stop with the toggle,
-  // duck under the aarti.
-  useEffect(() => {
-    audio.setAmbientTradition(temple.tradition);
-    if (bhajanOn) audio.playAmbient();
-    else audio.stopAmbient();
-  }, [temple.tradition, bhajanOn, audio]);
-
-  useEffect(() => {
-    audio.duckAmbient(s.aartiOn);
-  }, [s.aartiOn, audio]);
+  // The devotional background track (per-temple swap, toggle, and aarti ducking)
+  // is fully managed inside usePujaAudio from the options above.
 
   // Drive looping audio from state.
   useEffect(() => {
@@ -79,10 +75,10 @@ export default function VirtualPujaScreen() {
     }
   }, [s.aartiOn, audio]);
 
-  // Stop everything on leave.
+  // Stop the ritual effects on leave (players auto-release; ambience too).
   useEffect(
     () => () => {
-      audio.stopAll();
+      audio.stopEffects();
       useVirtualPuja.getState().resetOfferings();
     },
     [audio],

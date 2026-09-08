@@ -17,9 +17,11 @@
 //   mantra.wav  low Om / chant drone      loop     20–40 s (optional)
 //
 // AMBIENCE: `frontend/assets/audio/ambient/{shiva,vishnu,ganesha,devi,krishna}.wav`
-// is the devotional background track per temple (Shiva bhajan under the Somnath
-// shrine, etc.). Same deal — synthesized placeholders, overwrite in place. These
-// play low under the effects and duck further while aarti runs.
+// is the devotional background track per temple. Placeholders are a synthesized
+// rhythmic chant-loop (tanpura drone + gong + a syllabic melody line — no real
+// words). For production, drop in a licensed recording of the actual chant
+// (e.g. "Hara Hara Mahadeva" for Shiva), same filename. These play under the
+// effects and duck while aarti runs.
 //   ⚠ This is a paid product: the real tracks MUST be royalty-free / CC0 /
 //   commercially licensed. Traditional bhajans are public-domain compositions
 //   but specific *recordings* are copyrighted. Safe: instrumental temple
@@ -125,7 +127,7 @@ export const PUJA_AMBIENCE: Record<PujaTradition, number> = {
 export const VIRTUAL_TEMPLE_STORAGE_KEY = 'astraveda.virtualTemple';
 export const PUJA_BHAJAN_STORAGE_KEY = 'astraveda.pujaBhajan';
 
-export const AMBIENCE_VOLUME = 0.5;
-export const AMBIENCE_DUCKED_VOLUME = 0.22;
+export const AMBIENCE_VOLUME = 0.7;
+export const AMBIENCE_DUCKED_VOLUME = 0.32;
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
