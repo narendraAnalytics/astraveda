@@ -324,10 +324,10 @@ async def scan_palm(
         raise HTTPException(status_code=502, detail=f"Palm scan failed: {exc}") from exc
 
     if not v.get("is_hand", False):
-        raise HTTPException(status_code=422, detail="That doesn't look like an open palm — please retake the photo.")
-    if v.get("image_quality") == "poor":
-        reason = v.get("retake_reason") or "the lines aren't clear enough"
-        raise HTTPException(status_code=422, detail=f"Please retake the photo — {reason}.")
+        raise HTTPException(
+            status_code=422,
+            detail="That doesn't look like an open palm — hold your hand flat, palm to the camera.",
+        )
 
     def _enum(val, allowed):
         return val if val in allowed else None
@@ -341,6 +341,14 @@ async def scan_palm(
     lines = _clean_lines(
         {k: val for k, val in (v.get("lines") or {}).items() if val and val != "not visible"}
     )
+    mounts_seen = [m for m in (v.get("mounts") or []) if m in MOUNTS]
+
+    # Only ask for a retake when the photo is poor AND Gemini pulled nothing
+    # usable from it. A "poor" shot that still yielded a shape / lines / mounts
+    # is good enough to read — don't block the user on a lighting judgement.
+    if v.get("image_quality") == "poor" and hand_shape == "Unknown" and not lines and not mounts_seen:
+        reason = v.get("retake_reason") or "the lines aren't clear enough"
+        raise HTTPException(status_code=422, detail=f"Please retake the photo — {reason}.")
 
     f = Features(
         name=body.name.strip(),
@@ -353,7 +361,7 @@ async def scan_palm(
         finger_length=_enum(v.get("finger_length"), FINGER_LENGTHS),
         thumb_flex=_enum(v.get("thumb_flex"), THUMB_FLEX),
         lines=lines,
-        mounts=[m for m in (v.get("mounts") or []) if m in MOUNTS][:3],
+        mounts=mounts_seen[:3],
         marks=[str(m)[:60] for m in (v.get("marks") or []) if m][:8],
         source="scan",
         observations=(str(v.get("observations"))[:600] if v.get("observations") else None),

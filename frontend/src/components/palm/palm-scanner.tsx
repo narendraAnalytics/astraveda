@@ -23,11 +23,11 @@ const GOLD = '#ffd36a';
 const FRAME = 300;
 
 // Auto-shutter timing (ms).
-const SETTLE_MS = 1500; // let the user get their hand up before we start the hold
-const HOLD_MS = 2800; // steadiness dwell before the camera fires itself
+const SETTLE_MS = 2400; // let the user get their hand up before we start the hold
+const HOLD_MS = 3200; // steadiness dwell before the camera fires itself
 const RETRY_MS = 3500; // spacing between auto-retries — also keeps us well under
-//                        Gemini 2.5 Flash free-tier RPM (a scan = one request).
-const MAX_AUTO_RETRIES = 2; // after this, require a manual tap so we never loop on the API
+//                        the Gemini Flash free-tier RPM (a scan = one request).
+const MAX_AUTO_RETRIES = 3; // after this, require a manual tap so we never loop on the API
 
 const COACH: string[] = [
   'Hold your open palm up to the screen',
@@ -99,8 +99,9 @@ export function PalmScanner({
     });
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try {
-      // quality 0.45 keeps the base64 POST small; Gemini downscales anyway.
-      const pic = await camRef.current.takePictureAsync({ quality: 0.45, base64: true });
+      // 0.6 — the front camera is fixed-focus and lower-res, so give Gemini a
+      // bit more to work with; it still downscales server-side.
+      const pic = await camRef.current.takePictureAsync({ quality: 0.6, base64: true });
       if (pic?.base64) {
         setShot(pic.uri);
         onCaptured(pic.base64, 'image/jpeg', pic.uri);
