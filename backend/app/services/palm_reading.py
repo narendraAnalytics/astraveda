@@ -8,6 +8,8 @@ Result is cached on the PalmReading row.
 
 from __future__ import annotations
 
+from datetime import date
+
 import httpx
 
 from app.config import get_settings
@@ -29,6 +31,8 @@ _SYSTEM = (
     "speak to it generally and gently invite the reader to look closer — never "
     "invent a specific marking. Reference the Vedic planetary rulers of the "
     "mounts (Guru, Shani, Surya, Budha, Shukra, Chandra, Mangala) where relevant. "
+    "If gender is given, use natural pronouns; if relationship status or age is "
+    "given, let it shape the Heart Line & Relationships and Life Line sections. "
     "260 to 340 words. No markdown symbols, no disclaimers, and never predict "
     "death, disease or disaster."
 )
@@ -41,9 +45,32 @@ _LINE_LABELS = {
 }
 
 
+def _age_from(birth_date: str | None) -> int | None:
+    if not birth_date:
+        return None
+    try:
+        y, m, d = (int(x) for x in birth_date.split("-"))
+        today = date.today()
+        return today.year - y - ((today.month, today.day) < (m, d))
+    except (ValueError, TypeError):
+        return None
+
+
 def _facts(row) -> str:
-    lines = [
-        f"Name: {row.name}",
+    prof = row.profile or {}
+    lines = [f"Name: {row.name}"]
+
+    gender = prof.get("gender")
+    if gender and gender != "Prefer not to say":
+        lines.append(f"Gender: {gender}")
+    rel_status = prof.get("relationship_status")
+    if rel_status and rel_status != "Prefer not to say":
+        lines.append(f"Relationship status: {rel_status}")
+    age = _age_from(prof.get("birth_date"))
+    if age is not None and 0 < age < 120:
+        lines.append(f"Approximate age: {age}")
+
+    lines += [
         f"Dominant hand: {row.dominant_hand}",
         f"Hand shape (elemental): {row.hand_shape}",
         f"Finger length: {row.finger_length or 'not given'}",

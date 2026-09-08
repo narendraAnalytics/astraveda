@@ -4,6 +4,7 @@ import {
   Alert,
   Image,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Animated, { FadeIn, FadeInDown, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -23,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '../lib/api';
 import {
   FINGER_LENGTHS,
+  GENDERS,
   HANDS,
   LINE_KEYS,
   LINE_OPTIONS,
@@ -30,17 +33,20 @@ import {
   MOUNTS,
   MOUNT_RULER,
   RELATIONS,
+  RELATIONSHIP_STATUS,
   THUMB_FLEX,
   generatePalm,
   getPalm,
   getPalmReading,
   scanPalm,
+  type Gender,
   type Hand,
   type HandShape,
   type LineKey,
   type Mount,
   type PalmReading,
   type Relation,
+  type RelationshipStatus,
 } from '../lib/palm';
 import {
   getPalmPhotoUri,
@@ -77,6 +83,11 @@ const THUMB_OPTIONS: Option[] = THUMB_FLEX.map((v) => ({
 const MOUNT_OPTIONS: Option[] = MOUNTS.map((m) => ({ value: m, label: `${m} (${MOUNT_RULER[m]})` }));
 const MARK_OPTIONS: Option[] = MARKS.map((m) => ({ value: m, label: m }));
 const RELATION_OPTIONS: Option[] = RELATIONS.map((r) => ({ value: r, label: r }));
+const GENDER_OPTIONS: Option[] = GENDERS.map((g) => ({ value: g, label: g }));
+const REL_STATUS_OPTIONS: Option[] = RELATIONSHIP_STATUS.map((s) => ({ value: s, label: s }));
+
+const isoDate = (d: Date | null) =>
+  d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
 
 const LINE_LABEL: Record<LineKey, string> = {
   heart: 'Heart line (Hridaya)',
@@ -103,6 +114,10 @@ export default function PalmScreen() {
   // Form state
   const [name, setName] = useState('');
   const [relation, setRelation] = useState<Relation | null>(null);
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [relationshipStatus, setRelationshipStatus] = useState<RelationshipStatus | null>(null);
+  const [birthDate, setBirthDate] = useState<Date | null>(null);
+  const [showDob, setShowDob] = useState(false);
   const [dominantHand, setDominantHand] = useState<Hand | null>(null);
   const [handShape, setHandShape] = useState<HandShape | null>(null);
   const [fingerLength, setFingerLength] = useState<string | null>(null);
@@ -135,8 +150,12 @@ export default function PalmScreen() {
     setReadingError(null);
     setError(null);
     setStep(0);
-    setName(userRef.current?.firstName ?? userRef.current?.username ?? '');
+    setName('');
     setRelation(null);
+    setGender(null);
+    setRelationshipStatus(null);
+    setBirthDate(null);
+    setShowDob(false);
     setDominantHand(null);
     setHandShape(null);
     setFingerLength(null);
@@ -197,6 +216,7 @@ export default function PalmScreen() {
   }, [isLoaded, isSignedIn, idParam, freshParam, resetForm]);
 
   const canSubmit = name.trim().length >= 2 && !!dominantHand && !!handShape;
+  const canScan = name.trim().length >= 2 && !!dominantHand;
 
   const stepValid = useMemo(() => {
     if (step === 0) return name.trim().length >= 2 && !!dominantHand && !!handShape;
@@ -247,6 +267,9 @@ export default function PalmScreen() {
         {
           name: name.trim(),
           relation,
+          gender,
+          relationship_status: relationshipStatus,
+          birth_date: isoDate(birthDate),
           dominant_hand: dominantHand,
           hand_shape: handShape,
           finger_length: fingerLength,
@@ -269,7 +292,22 @@ export default function PalmScreen() {
       setError(e instanceof Error ? e.message : 'Could not generate your palm reading');
       setPhase('form');
     }
-  }, [canSubmit, dominantHand, handShape, name, relation, fingerLength, thumbFlex, lines, mounts, marks, pickedPhoto]);
+  }, [
+    canSubmit,
+    dominantHand,
+    handShape,
+    name,
+    relation,
+    gender,
+    relationshipStatus,
+    birthDate,
+    fingerLength,
+    thumbFlex,
+    lines,
+    mounts,
+    marks,
+    pickedPhoto,
+  ]);
 
   const onScanCaptured = useCallback(
     async (base64: string, mime: string, uri: string) => {
@@ -279,7 +317,16 @@ export default function PalmScreen() {
       try {
         const token = await getTokenRef.current();
         const result = await scanPalm(
-          { name: name.trim() || 'Me', relation, dominant_hand: dominantHand, image: base64, mime_type: mime },
+          {
+            name: name.trim() || 'Me',
+            relation,
+            gender,
+            relationship_status: relationshipStatus,
+            birth_date: isoDate(birthDate),
+            dominant_hand: dominantHand,
+            image: base64,
+            mime_type: mime,
+          },
           token,
         );
         const savedPhoto = savePalmPhoto(result.id, uri);
@@ -301,7 +348,7 @@ export default function PalmScreen() {
         }
       }
     },
-    [name, relation, dominantHand],
+    [name, relation, gender, relationshipStatus, birthDate, dominantHand],
   );
 
   // ---- reading (phase 2) -------------------------------------------------
@@ -439,12 +486,30 @@ export default function PalmScreen() {
                 columns={3}
               />
             </Field>
+            <Field label="Dominant hand">
+              <OptionGroup options={HAND_OPTIONS} value={dominantHand} onChange={(v) => setDominantHand(v as Hand)} columns={2} />
+            </Field>
+            <PersonBits
+              gender={gender}
+              setGender={setGender}
+              relationshipStatus={relationshipStatus}
+              setRelationshipStatus={setRelationshipStatus}
+              birthDate={birthDate}
+              onPickDob={() => setShowDob(true)}
+              onClearDob={() => setBirthDate(null)}
+            />
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(80).duration(360)}>
             <Pressable
+              disabled={!canScan}
               onPress={() => { setScanError(null); setPhase('scan'); }}
-              style={({ pressed }) => [styles.choiceCard, styles.choiceScan, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.choiceCard,
+                styles.choiceScan,
+                !canScan && styles.choiceOff,
+                pressed && styles.pressed,
+              ]}
             >
               <View style={styles.choiceIcon}>
                 <Feather name="camera" size={22} color="#fff" />
@@ -454,7 +519,11 @@ export default function PalmScreen() {
                   <Text style={styles.choiceTitle}>Scan my palm</Text>
                   <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
                 </View>
-                <Text style={styles.choiceSub}>Photograph your palm — AI reads the lines and mounts for you.</Text>
+                <Text style={styles.choiceSub}>
+                  {canScan
+                    ? 'Photograph your palm — AI reads the lines and mounts for you.'
+                    : 'Add your name and dominant hand above to continue.'}
+                </Text>
               </View>
               <Feather name="chevron-right" size={20} color="#fff" />
             </Pressable>
@@ -505,6 +574,15 @@ export default function PalmScreen() {
                     columns={3}
                   />
                 </Field>
+                <PersonBits
+                  gender={gender}
+                  setGender={setGender}
+                  relationshipStatus={relationshipStatus}
+                  setRelationshipStatus={setRelationshipStatus}
+                  birthDate={birthDate}
+                  onPickDob={() => setShowDob(true)}
+                  onClearDob={() => setBirthDate(null)}
+                />
                 <Field label="Dominant hand">
                   <OptionGroup options={HAND_OPTIONS} value={dominantHand} onChange={(v) => setDominantHand(v as Hand)} columns={2} />
                 </Field>
@@ -610,6 +688,20 @@ export default function PalmScreen() {
           )}
         </View>
       ) : null}
+
+      {showDob ? (
+        <DateTimePicker
+          value={birthDate ?? new Date(1995, 0, 1)}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          onValueChange={(_e, d) => {
+            if (Platform.OS !== 'ios') setShowDob(false);
+            if (d) setBirthDate(d);
+          }}
+          onDismiss={() => setShowDob(false)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -620,6 +712,62 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <Text style={styles.fieldLabel}>{label}</Text>
       {children}
     </View>
+  );
+}
+
+function PersonBits({
+  gender,
+  setGender,
+  relationshipStatus,
+  setRelationshipStatus,
+  birthDate,
+  onPickDob,
+  onClearDob,
+}: {
+  gender: Gender | null;
+  setGender: (v: Gender | null) => void;
+  relationshipStatus: RelationshipStatus | null;
+  setRelationshipStatus: (v: RelationshipStatus | null) => void;
+  birthDate: Date | null;
+  onPickDob: () => void;
+  onClearDob: () => void;
+}) {
+  return (
+    <>
+      <Field label="Gender">
+        <OptionGroup
+          options={GENDER_OPTIONS}
+          value={gender}
+          onChange={(v) => setGender((v as Gender) === gender ? null : (v as Gender))}
+          columns={2}
+        />
+      </Field>
+      <Field label="Relationship status">
+        <OptionGroup
+          options={REL_STATUS_OPTIONS}
+          value={relationshipStatus}
+          onChange={(v) =>
+            setRelationshipStatus((v as RelationshipStatus) === relationshipStatus ? null : (v as RelationshipStatus))
+          }
+          columns={2}
+        />
+      </Field>
+      <Field label="Birth date (optional)">
+        {birthDate ? (
+          <View style={styles.dobRow}>
+            <Text style={styles.dobText}>{birthDate.toLocaleDateString()}</Text>
+            <Pressable onPress={onClearDob} hitSlop={8}>
+              <Feather name="x" size={16} color={ROSE} />
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable onPress={onPickDob} style={({ pressed }) => [styles.dobBtn, pressed && styles.pressed]}>
+            <Feather name="calendar" size={15} color={ROSE} />
+            <Text style={styles.dobBtnText}>Add birth date</Text>
+          </Pressable>
+        )}
+      </Field>
+    </>
   );
 }
 
@@ -804,6 +952,32 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   choiceForm: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f0d3e0' },
+  choiceOff: { opacity: 0.5 },
+  dobRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e6d5c6',
+    backgroundColor: '#fffdf9',
+    paddingHorizontal: 13,
+  },
+  dobText: { fontSize: 15, color: '#3c2924', fontWeight: '600' },
+  dobBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e3d0ef',
+    backgroundColor: '#fdeef3',
+    paddingHorizontal: 14,
+    alignSelf: 'flex-start',
+  },
+  dobBtnText: { fontSize: 13, fontWeight: '700', color: ROSE },
   choiceIcon: {
     width: 44,
     height: 44,

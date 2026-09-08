@@ -13,6 +13,7 @@ import base64
 import binascii
 import hashlib
 import json
+import re
 from datetime import datetime
 from uuid import UUID
 
@@ -28,6 +29,8 @@ from app.services import palm_reading, palm_vision
 router = APIRouter(prefix="/palm", tags=["palm"])
 
 RELATIONS = {"Self", "Spouse", "Child", "Mother", "Father", "Sibling", "Friend", "Other"}
+GENDERS = {"Female", "Male", "Other", "Prefer not to say"}
+RELATIONSHIP_STATUS = {"Single", "In a relationship", "Married", "Prefer not to say"}
 HANDS = {"Left", "Right"}
 SHAPES = {"Earth", "Air", "Fire", "Water"}
 FINGER_LENGTHS = {"Short", "Balanced", "Long"}
@@ -50,6 +53,9 @@ _HAND_SHAPE_TRAIT = {
 class GenerateIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     relation: str | None = None
+    gender: str | None = None
+    relationship_status: str | None = None
+    birth_date: str | None = None  # YYYY-MM-DD, optional
     dominant_hand: str
     hand_shape: str
     finger_length: str | None = None
@@ -62,6 +68,9 @@ class GenerateIn(BaseModel):
 class ScanIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     relation: str | None = None
+    gender: str | None = None
+    relationship_status: str | None = None
+    birth_date: str | None = None  # YYYY-MM-DD, optional
     dominant_hand: str | None = None  # user tells us which hand they photographed
     image: str = Field(min_length=32)  # base64 (no data: prefix)
     mime_type: str = "image/jpeg"
@@ -155,6 +164,9 @@ def _clean_lines(raw: dict[str, str]) -> dict[str, str]:
 class Features(BaseModel):
     name: str
     relation: str | None = None
+    gender: str | None = None
+    relationship_status: str | None = None
+    birth_date: str | None = None
     dominant_hand: str
     hand_shape: str
     finger_length: str | None = None
@@ -181,9 +193,19 @@ def _signature(f: Features) -> str:
     return hashlib.sha1(blob.encode()).hexdigest()
 
 
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _clean_birth_date(raw: str | None) -> str | None:
+    return raw if raw and _DATE_RE.match(raw) else None
+
+
 def _build_profile(f: Features) -> dict:
     return {
         "name": f.name.strip(),
+        "gender": f.gender,
+        "relationship_status": f.relationship_status,
+        "birth_date": f.birth_date,
         "dominant_hand": f.dominant_hand,
         "hand_shape": f.hand_shape,
         "hand_shape_trait": _HAND_SHAPE_TRAIT.get(f.hand_shape, ""),
@@ -264,6 +286,9 @@ async def generate_palm(
     f = Features(
         name=body.name.strip(),
         relation=body.relation if body.relation in RELATIONS else None,
+        gender=body.gender if body.gender in GENDERS else None,
+        relationship_status=body.relationship_status if body.relationship_status in RELATIONSHIP_STATUS else None,
+        birth_date=_clean_birth_date(body.birth_date),
         dominant_hand=body.dominant_hand,
         hand_shape=body.hand_shape,
         finger_length=body.finger_length if body.finger_length in FINGER_LENGTHS else None,
@@ -320,6 +345,9 @@ async def scan_palm(
     f = Features(
         name=body.name.strip(),
         relation=body.relation if body.relation in RELATIONS else None,
+        gender=body.gender if body.gender in GENDERS else None,
+        relationship_status=body.relationship_status if body.relationship_status in RELATIONSHIP_STATUS else None,
+        birth_date=_clean_birth_date(body.birth_date),
         dominant_hand=dominant,
         hand_shape=hand_shape,
         finger_length=_enum(v.get("finger_length"), FINGER_LENGTHS),

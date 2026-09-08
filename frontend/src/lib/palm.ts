@@ -9,6 +9,12 @@ export type Relation = (typeof RELATIONS)[number];
 export const HANDS = ['Left', 'Right'] as const;
 export type Hand = (typeof HANDS)[number];
 
+export const GENDERS = ['Female', 'Male', 'Other', 'Prefer not to say'] as const;
+export type Gender = (typeof GENDERS)[number];
+
+export const RELATIONSHIP_STATUS = ['Single', 'In a relationship', 'Married', 'Prefer not to say'] as const;
+export type RelationshipStatus = (typeof RELATIONSHIP_STATUS)[number];
+
 export const HAND_SHAPES = ['Earth', 'Air', 'Fire', 'Water'] as const;
 export type HandShape = (typeof HAND_SHAPES)[number];
 
@@ -80,7 +86,13 @@ export type PalmSummary = {
   created_at: string;
 };
 
-export type GenerateBody = {
+export type PersonFields = {
+  gender?: Gender | null;
+  relationship_status?: RelationshipStatus | null;
+  birth_date?: string | null; // YYYY-MM-DD
+};
+
+export type GenerateBody = PersonFields & {
   name: string;
   relation?: Relation | null;
   dominant_hand: Hand;
@@ -96,7 +108,7 @@ export function generatePalm(body: GenerateBody, token: string | null) {
   return api<PalmReading>('/palm/generate', { method: 'POST', body, token });
 }
 
-export type ScanBody = {
+export type ScanBody = PersonFields & {
   name: string;
   relation?: Relation | null;
   dominant_hand?: Hand | null;
