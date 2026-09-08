@@ -42,6 +42,8 @@ import {
 } from '../lib/aura';
 import { getAuraPhotoUri, readAuraCache, saveAuraPhoto, writeAuraCache } from '../lib/aura-cache';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { ChakraBackdrop } from '../components/palm/chakra-backdrop';
 import { OptionGroup, type Option } from '../components/palm/option-card';
 import { AuraHalo } from '../components/aura/aura-halo';
@@ -70,6 +72,7 @@ export default function AuraScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [aura, setAura] = useState<AuraReading | null>(null);
@@ -86,6 +89,7 @@ export default function AuraScreen() {
   const [quiz, setQuiz] = useState<QuizAnswers>({});
 
   const [checkout, setCheckout] = useState<AuraCheckout | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [paid, setPaid] = useState<Paid | null>(null);
   const [resumable, setResumable] = useState<{ payment_id: string; person: PersonFields } | null>(null);
 
@@ -197,22 +201,36 @@ export default function AuraScreen() {
   const canContinue = name.trim().length >= 2;
   const quizComplete = useMemo(() => AURA_QUIZ.every((q) => quiz[q.key as keyof QuizAnswers]), [quiz]);
 
-  const startCheckout = useCallback(async () => {
+  const AURA_PRICE = 6000;
+
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createAuraCheckout(person(), token, method);
+        if (co.method === 'wallet') {
+          setPaid({ payment_id: co.payment_id });
+          setScanError(null);
+          setPhase('scan');
+        } else {
+          setCheckout(co);
+        }
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [person],
+  );
+
+  const openPay = useCallback(async () => {
     if (!quizComplete) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    try {
-      const token = await getTokenRef.current();
-      const co = await createAuraCheckout(person(), token);
-      setCheckout(co);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 503) {
-        setError('Payments are not available right now. Please try again later.');
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
-    }
-  }, [quizComplete, person]);
+    setShowPay(true);
+  }, [quizComplete]);
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {
@@ -396,7 +414,7 @@ export default function AuraScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <Pressable
               disabled={!quizComplete}
-              onPress={startCheckout}
+              onPress={openPay}
               style={({ pressed }) => [styles.cta, !quizComplete && styles.ctaOff, pressed && styles.pressed]}
             >
               <Feather name="camera" size={16} color="#fff" />
@@ -515,6 +533,21 @@ export default function AuraScreen() {
           onDismiss={() => setShowDob(false)}
         />
       ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={AURA_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout

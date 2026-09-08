@@ -45,6 +45,7 @@ export type PujaCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -86,8 +87,12 @@ export function pujaAvailability(pujaId: string, date: string) {
   return api<Availability>(`/puja/availability?puja_id=${encodeURIComponent(pujaId)}&date=${date}`);
 }
 
-export function createPujaCheckout(body: CheckoutBody, token: string | null) {
-  return api<PujaCheckout>('/puja/checkout', { method: 'POST', body, token });
+export function createPujaCheckout(
+  body: CheckoutBody,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<PujaCheckout>('/puja/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 export function confirmPuja(

@@ -83,6 +83,7 @@ export type VastuCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -92,8 +93,12 @@ export type PaymentProof = {
   razorpay_signature?: string;
 };
 
-export function createVastuCheckout(body: SpaceFields, token: string | null) {
-  return api<VastuCheckout>('/vastu/checkout', { method: 'POST', body, token });
+export function createVastuCheckout(
+  body: SpaceFields,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<VastuCheckout>('/vastu/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 export function pendingVastuCheckout(token: string | null) {

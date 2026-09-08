@@ -130,6 +130,7 @@ export type AuraCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -139,8 +140,12 @@ export type PaymentProof = {
   razorpay_signature?: string;
 };
 
-export function createAuraCheckout(body: PersonFields, token: string | null) {
-  return api<AuraCheckout>('/aura/checkout', { method: 'POST', body, token });
+export function createAuraCheckout(
+  body: PersonFields,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<AuraCheckout>('/aura/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 export function pendingAuraCheckout(token: string | null) {

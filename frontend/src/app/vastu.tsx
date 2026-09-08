@@ -36,6 +36,8 @@ import {
 } from '../lib/vastu';
 import { getVastuPhotoUri, readVastuCache, saveVastuPhoto, writeVastuCache } from '../lib/vastu-cache';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { ChakraBackdrop } from '../components/palm/chakra-backdrop';
 import { OptionGroup, type Option } from '../components/palm/option-card';
 import { RoomCamera } from '../components/vastu/room-camera';
@@ -61,6 +63,7 @@ export default function VastuScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [vastu, setVastu] = useState<VastuReading | null>(null);
@@ -72,6 +75,7 @@ export default function VastuScreen() {
   const [direction, setDirection] = useState<Direction>('Unknown');
 
   const [checkout, setCheckout] = useState<VastuCheckout | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [paid, setPaid] = useState<Paid | null>(null);
   const [resumable, setResumable] = useState<{ payment_id: string; space: SpaceFields } | null>(null);
 
@@ -166,22 +170,36 @@ export default function VastuScreen() {
 
   const canPay = label.trim().length >= 2 && !!roomType;
 
-  const startCheckout = useCallback(async () => {
+  const VASTU_PRICE = 15000;
+
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createVastuCheckout(space(), token, method);
+        if (co.method === 'wallet') {
+          setPaid({ payment_id: co.payment_id });
+          setCaptureError(null);
+          setPhase('capture');
+        } else {
+          setCheckout(co);
+        }
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [space],
+  );
+
+  const openPay = useCallback(async () => {
     if (!canPay) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    try {
-      const token = await getTokenRef.current();
-      const co = await createVastuCheckout(space(), token);
-      setCheckout(co);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 503) {
-        setError('Payments are not available right now. Please try again later.');
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
-    }
-  }, [canPay, space]);
+    setShowPay(true);
+  }, [canPay]);
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {
@@ -382,7 +400,7 @@ export default function VastuScreen() {
 
             <Pressable
               disabled={!canPay}
-              onPress={startCheckout}
+              onPress={openPay}
               style={({ pressed }) => [styles.cta, !canPay && styles.ctaOff, pressed && styles.pressed]}
             >
               <Feather name="compass" size={16} color="#fff" />
@@ -398,6 +416,21 @@ export default function VastuScreen() {
           </Animated.View>
         </ScrollView>
       )}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={VASTU_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout

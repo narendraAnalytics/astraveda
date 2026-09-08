@@ -78,6 +78,7 @@ export type FaceCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -89,8 +90,12 @@ export type PaymentProof = {
 
 // Creates a ₹45 Razorpay order for one face reading. Throws ApiError 503 if
 // payments aren't configured.
-export function createFaceCheckout(body: PersonFields, token: string | null) {
-  return api<FaceCheckout>('/face/checkout', { method: 'POST', body, token });
+export function createFaceCheckout(
+  body: PersonFields,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<FaceCheckout>('/face/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 export function pendingFaceCheckout(token: string | null) {

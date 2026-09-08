@@ -48,6 +48,8 @@ import {
   writeFaceCache,
 } from '../lib/face-cache';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { ChakraBackdrop } from '../components/palm/chakra-backdrop';
 import { OptionGroup, type Option } from '../components/palm/option-card';
 import { FaceLoader } from '../components/face/face-loader';
@@ -90,6 +92,7 @@ export default function FaceScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [face, setFace] = useState<FaceReading | null>(null);
@@ -112,6 +115,7 @@ export default function FaceScreen() {
   // Payment
   const [checkout, setCheckout] = useState<FaceCheckout | null>(null);
   const [paid, setPaid] = useState<Paid | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [resumable, setResumable] = useState<{ payment_id: string; person: PersonFields } | null>(null);
 
   // Scan
@@ -226,23 +230,36 @@ export default function FaceScreen() {
   }, [phase, idParam]);
 
   const canPay = name.trim().length >= 2;
+  const FACE_PRICE = 4500;
 
-  const startCheckout = useCallback(async () => {
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createFaceCheckout(person(), token, method);
+        if (co.method === 'wallet') {
+          setPaid({ payment_id: co.payment_id });
+          setScanError(null);
+          setPhase('scan');
+        } else {
+          setCheckout(co);
+        }
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [person],
+  );
+
+  const openPay = useCallback(async () => {
     if (!canPay) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    try {
-      const token = await getTokenRef.current();
-      const co = await createFaceCheckout(person(), token);
-      setCheckout(co);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 503) {
-        setError('Payments are not available right now. Please try again later.');
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
-    }
-  }, [canPay, person]);
+    setShowPay(true);
+  }, [canPay]);
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {
@@ -564,7 +581,7 @@ export default function FaceScreen() {
 
             <Pressable
               disabled={!canPay}
-              onPress={startCheckout}
+              onPress={openPay}
               style={({ pressed }) => [styles.cta, !canPay && styles.ctaOff, pressed && styles.pressed]}
             >
               <Feather name="camera" size={16} color="#fff" />
@@ -590,6 +607,21 @@ export default function FaceScreen() {
           onDismiss={() => setShowDob(false)}
         />
       ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={FACE_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout

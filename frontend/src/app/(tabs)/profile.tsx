@@ -6,12 +6,16 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useWallet } from '../../hooks/use-wallet';
+import { rupees } from '../../lib/wallet';
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useClerk();
   const [signingOut, setSigningOut] = useState(false);
+  const { balance, loading: walletLoading } = useWallet();
 
   if (!isLoaded) {
     return (
@@ -71,7 +75,7 @@ export default function ProfileScreen() {
 
       <View style={styles.card}>
         <Row icon="star" label="Credits" value="2 free" />
-        <Row icon="credit-card" label="Wallet" value="₹0" />
+        <Row icon="credit-card" label="Wallet" value={walletLoading ? '…' : rupees(balance)} onPress={() => router.push('/wallet')} />
         <Row icon="book-open" label="Reading history" value="—" />
       </View>
 
@@ -93,13 +97,24 @@ export default function ProfileScreen() {
   );
 }
 
-function Row({ icon, label, value }: { icon: keyof typeof Feather.glyphMap; label: string; value: string }) {
+function Row({
+  icon,
+  label,
+  value,
+  onPress,
+}: {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
   return (
-    <View style={styles.row}>
+    <Pressable disabled={!onPress} onPress={onPress} style={({ pressed }) => [styles.row, pressed && onPress && styles.pressed]}>
       <Feather name={icon} size={16} color="#8f29dd" />
       <Text style={styles.rowLabel}>{label}</Text>
       <Text style={styles.rowValue}>{value}</Text>
-    </View>
+      {onPress ? <Feather name="chevron-right" size={15} color="#c7ad97" /> : null}
+    </Pressable>
   );
 }
 

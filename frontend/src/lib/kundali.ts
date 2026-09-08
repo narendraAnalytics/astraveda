@@ -120,6 +120,7 @@ export type KundaliCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -131,8 +132,12 @@ export type GeneratePayment = {
 
 // Creates a ₹15 Razorpay order for one chart — every generation is paid, no
 // per-person de-dupe. Throws ApiError 503 if payments aren't configured.
-export function createKundaliCheckout(body: GenerateBody, token: string | null) {
-  return api<KundaliCheckout>('/kundali/checkout', { method: 'POST', body, token });
+export function createKundaliCheckout(
+  body: GenerateBody,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<KundaliCheckout>('/kundali/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 // A paid-but-unclaimed order (app closed right after paying) so the form can

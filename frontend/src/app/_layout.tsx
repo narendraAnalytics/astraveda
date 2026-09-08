@@ -37,6 +37,7 @@ function AppShell() {
       <Stack.Screen name="puja-book" />
       <Stack.Screen name="puja-slip" />
       <Stack.Screen name="puja-bookings" />
+      <Stack.Screen name="wallet" />
       <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
     </Stack>
   );

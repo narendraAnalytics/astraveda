@@ -79,6 +79,7 @@ export type DreamCheckout = {
   order_id: string;
   key_id: string;
   amount_paise: number;
+  method?: 'card' | 'wallet';
   currency: string;
 };
 
@@ -88,8 +89,12 @@ export type PaymentProof = {
   razorpay_signature?: string;
 };
 
-export function createDreamCheckout(body: DreamBody, token: string | null) {
-  return api<DreamCheckout>('/dream/checkout', { method: 'POST', body, token });
+export function createDreamCheckout(
+  body: DreamBody,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<DreamCheckout>('/dream/checkout', { method: 'POST', body: { ...body, method }, token });
 }
 
 export function pendingDreamCheckout(token: string | null) {

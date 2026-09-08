@@ -38,6 +38,8 @@ import {
 } from '../lib/dream';
 import { readDreamCache, writeDreamCache } from '../lib/dream-cache';
 import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { ChakraBackdrop } from '../components/palm/chakra-backdrop';
 import { OptionGroup, type Option } from '../components/palm/option-card';
 import { DreamLoader } from '../components/dream/dream-loader';
@@ -64,6 +66,7 @@ export default function DreamScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [dream, setDream] = useState<DreamReading | null>(null);
@@ -80,6 +83,7 @@ export default function DreamScreen() {
   const [context, setContext] = useState<DreamContext>({});
 
   const [checkout, setCheckout] = useState<DreamCheckout | null>(null);
+  const [showPay, setShowPay] = useState(false);
   const [paid, setPaid] = useState<Paid | null>(null);
   const [resumable, setResumable] = useState<{ payment_id: string; dream: DreamBody } | null>(null);
 
@@ -201,22 +205,31 @@ export default function DreamScreen() {
     [],
   );
 
-  const startCheckout = useCallback(async () => {
+  const DREAM_PRICE = 3000;
+
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createDreamCheckout(body(), token, method);
+        if (co.method === 'wallet') runInterpret({ payment_id: co.payment_id }, body());
+        else setCheckout(co);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [body, runInterpret],
+  );
+
+  const openPay = useCallback(async () => {
     if (!canSubmit) return;
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
-    try {
-      const token = await getTokenRef.current();
-      const co = await createDreamCheckout(body(), token);
-      setCheckout(co);
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 503) {
-        setError('Payments are not available right now. Please try again later.');
-        return;
-      }
-      setError(e instanceof Error ? e.message : 'Could not start checkout');
-    }
-  }, [canSubmit, body]);
+    setShowPay(true);
+  }, [canSubmit]);
 
   const onCheckoutClose = useCallback(
     (r: CheckoutResult) => {
@@ -390,7 +403,7 @@ export default function DreamScreen() {
 
             <Pressable
               disabled={!canSubmit}
-              onPress={startCheckout}
+              onPress={openPay}
               style={({ pressed }) => [styles.cta, !canSubmit && styles.ctaOff, pressed && styles.pressed]}
             >
               <Feather name="moon" size={16} color="#fff" />
@@ -420,6 +433,21 @@ export default function DreamScreen() {
           onDismiss={() => setShowDob(false)}
         />
       ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={DREAM_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
 
       {checkout ? (
         <RazorpayCheckout
