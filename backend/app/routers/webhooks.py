@@ -8,6 +8,7 @@ Copy the signing secret into CLERK_WEBHOOK_SECRET.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -22,6 +23,7 @@ from app.services import payments
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 settings = get_settings()
+log = logging.getLogger("astraveda.webhooks")
 
 
 def _primary_email(data: dict) -> str | None:
@@ -89,6 +91,13 @@ async def razorpay_webhook(request: Request, session: Session = Depends(get_sess
     try:
         event = payments.verify_webhook(body=body, signature=signature)
     except payments.PaymentError as exc:
+        log.warning(
+            "razorpay webhook rejected: %s (sig_present=%s, secret_configured=%s, body_len=%d)",
+            exc,
+            bool(signature),
+            bool(settings.razorpay_webhook_secret),
+            len(body),
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     event_id = request.headers.get("x-razorpay-event-id", "")
