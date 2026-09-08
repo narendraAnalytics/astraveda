@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | aura | (later: wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | (later: wallet_topup …)
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -238,6 +238,40 @@ class AuraReading(SQLModel, table=True):
     source: str = Field(default="scan")
 
     reading_en: str | None = None
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class DreamReading(SQLModel, table=True):
+    """One AI dream interpretation (Svapna Shastra lens) for a user.
+
+    Text only — the user describes the dream, Sarvam returns a structured
+    reading (title, feeling, symbols, theme, Vedic note, guidance). Every
+    interpretation is a paid ₹30 Razorpay order (server-authoritative). Single
+    call — there is no separate "reading" phase.
+    """
+
+    __tablename__ = "dream_readings"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    name: str
+    relation: str | None = None
+
+    dream_text: str
+    context: dict = Field(default_factory=dict, sa_type=JSON)  # feeling, when, night, focus
+
+    title: str = ""
+    feeling: str = ""
+    symbols: list = Field(default_factory=list, sa_type=JSON)  # [{symbol, meaning}]
+    theme: str = ""
+    vedic_note: str = ""
+    guidance: str = ""
+
+    profile: dict = Field(default_factory=dict, sa_type=JSON)
 
     payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 

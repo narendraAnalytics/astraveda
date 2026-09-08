@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth import _public_key
 from app.config import get_settings
 from app.db import init_db
-from app.routers import aura, auth, cosmic, face, kundali, palm, translate, webhooks
+from app.routers import aura, auth, cosmic, dream, face, kundali, palm, translate, webhooks
 
 settings = get_settings()
 
@@ -34,6 +34,7 @@ app.include_router(kundali.router)
 app.include_router(palm.router)
 app.include_router(face.router)
 app.include_router(aura.router)
+app.include_router(dream.router)
 app.include_router(cosmic.router)
 
 
