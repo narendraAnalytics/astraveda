@@ -28,7 +28,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { useUser } from '@clerk/expo';
 
 import { LanguageSheet } from '../../components/language-sheet';
@@ -271,6 +271,53 @@ function HeroCarousel() {
   );
 }
 
+function VirtualPujaBanner() {
+  const router = useRouter();
+  const reduceMotion = useReduceMotion();
+  const pulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(pulse);
+      pulse.value = 0;
+      return;
+    }
+    pulse.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.ease) }), -1, true);
+    return () => cancelAnimation(pulse);
+  }, [reduceMotion, pulse]);
+
+  const bellStyle = useAnimatedStyle(() => ({
+    transform: [{ rotateZ: `${interpolate(pulse.value, [0, 1], [-9, 9])}deg` }],
+  }));
+
+  const open = async () => {
+    await Haptics.selectionAsync();
+    router.push('/virtual-puja' as Href);
+  };
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.pujaBanner, pressed && styles.pressedCard]}
+      onPress={open}
+      accessibilityRole="button"
+      accessibilityLabel="Open Virtual Puja"
+    >
+      <LinearGradient colors={['#5c1620', '#7a1f2b', '#c2571f']} style={StyleSheet.absoluteFill} />
+      <Animated.View style={[styles.pujaBell, bellStyle]}>
+        <Text style={styles.pujaBellGlyph}>🔔</Text>
+      </Animated.View>
+      <View style={styles.pujaCopy}>
+        <View style={styles.pujaTag}>
+          <Text style={styles.pujaTagText}>✦ NEW</Text>
+        </View>
+        <Text style={styles.pujaTitle}>Virtual Puja</Text>
+        <Text style={styles.pujaSub}>Ring the bell, offer aarti &amp; flowers — anytime, anywhere</Text>
+      </View>
+      <Feather name="chevron-right" size={20} color="#ffe6cf" />
+    </Pressable>
+  );
+}
+
 type Insight = {
   labelKey: 'insights.luckyColor' | 'insights.rahuKalam' | 'insights.bestTime' | 'insights.todaysMantra';
   value: string;
@@ -429,6 +476,8 @@ export default function HomeScreen() {
           <HeroCarousel />
         </View>
 
+        <VirtualPujaBanner />
+
         <View style={styles.greetingRow}>
           <View>
             <Text style={styles.greeting}>{greetingText} <Text style={styles.sparkle}>✦</Text></Text>
@@ -568,6 +617,43 @@ const styles = StyleSheet.create({
   notificationDot: { position: 'absolute', right: 7, top: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: '#e3484c', borderWidth: 1.5, borderColor: '#fffaf2' },
   pressed: { opacity: 0.62 },
   heroCard: { marginHorizontal: 14, borderRadius: 25, overflow: 'hidden', backgroundColor: '#c98142', shadowColor: '#935522', shadowOpacity: 0.19, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
+  pujaBanner: {
+    marginHorizontal: 14,
+    marginTop: 14,
+    borderRadius: 20,
+    overflow: 'hidden',
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#7a1f2b',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+  },
+  pujaBell: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+  },
+  pujaBellGlyph: { fontSize: 24 },
+  pujaCopy: { flex: 1 },
+  pujaTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  pujaTagText: { fontSize: 8, fontWeight: '800', letterSpacing: 1, color: '#fff2e6' },
+  pujaTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  pujaSub: { fontSize: 10, color: 'rgba(255,255,255,0.82)', marginTop: 2, lineHeight: 13 },
   heroCopy: { position: 'absolute', top: 28, left: 17, alignItems: 'center', width: 86 },
   heroOdiaBlock: { position: 'absolute', bottom: 18, left: 18, right: 18, alignItems: 'center' },
   heroOdiaScript: { fontWeight: '700', fontSize: 14, lineHeight: 21, color: '#fff8eb', textAlign: 'center', textShadowColor: 'rgba(50,25,18,0.85)', textShadowRadius: 6 },

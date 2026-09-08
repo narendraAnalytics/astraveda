@@ -33,6 +33,7 @@ function AppShell() {
       <Stack.Screen name="dreams" />
       <Stack.Screen name="vastu" />
       <Stack.Screen name="spaces" />
+      <Stack.Screen name="virtual-puja" />
       <Stack.Screen name="temple" />
       <Stack.Screen name="puja-book" />
       <Stack.Screen name="puja-slip" />
