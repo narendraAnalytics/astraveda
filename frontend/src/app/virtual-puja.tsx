@@ -12,6 +12,7 @@ import { ActionBar, type PujaAction } from '../components/virtual-puja/action-ba
 import { ShrineStage } from '../components/virtual-puja/shrine-stage';
 import { TempleSheet } from '../components/virtual-puja/temple-sheet';
 import { useAutoPuja } from '../hooks/use-auto-puja';
+import { usePujaAmbient } from '../hooks/use-puja-ambient';
 import { usePujaAudio } from '../hooks/use-puja-audio';
 import { useReduceMotion } from '../hooks/use-reduce-motion';
 import { useVirtualPuja } from '../hooks/use-virtual-puja';
@@ -32,13 +33,14 @@ export default function VirtualPujaScreen() {
 
   const s = useVirtualPuja();
   const temple = getTemple(s.templeId);
-  const audio = usePujaAudio({
-    muted: s.muted,
-    tradition: temple.tradition,
-    bhajanOn,
-    ducked: s.aartiOn,
-  });
+  const audio = usePujaAudio(s.muted);
   const auto = useAutoPuja(audio, reduceMotion);
+  usePujaAmbient({
+    tradition: temple.tradition,
+    enabled: bhajanOn,
+    ducked: s.aartiOn,
+    muted: s.muted,
+  });
 
   const stageWidth = Math.min(screenWidth - 28, 420);
   const stageHeight = Math.round(stageWidth * 1.12);
@@ -56,9 +58,6 @@ export default function VirtualPujaScreen() {
       })
       .catch(() => {});
   }, []);
-
-  // The devotional background track (per-temple swap, toggle, and aarti ducking)
-  // is fully managed inside usePujaAudio from the options above.
 
   // Drive looping audio from state.
   useEffect(() => {
