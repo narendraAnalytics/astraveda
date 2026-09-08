@@ -30,10 +30,10 @@ const RETRY_MS = 3500; // spacing between auto-retries — also keeps us well un
 const MAX_AUTO_RETRIES = 2; // after this, require a manual tap so we never loop on the API
 
 const COACH: string[] = [
-  'Face your open palm to the camera',
+  'Hold your open palm up to the screen',
   'Find soft, even light — no harsh shadow',
   'Fill the outline, fingers slightly apart',
-  'Hold your hand steady',
+  'Keep your hand steady',
 ];
 
 const ANALYSING: string[] = [
@@ -258,7 +258,7 @@ export function PalmScanner({
       {shot ? (
         <Image source={{ uri: shot }} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : (
-        <CameraView ref={camRef} style={StyleSheet.absoluteFill} facing="back" />
+        <CameraView ref={camRef} style={StyleSheet.absoluteFill} facing="front" mirror={false} />
       )}
       {shot ? <View style={[StyleSheet.absoluteFill, styles.dim]} /> : null}
 
@@ -324,16 +324,12 @@ export function PalmScanner({
       </View>
 
       <View style={styles.controls}>
-        {analysing ? null : errorText && manualHold ? (
+        {!analysing && manualHold ? (
           <Pressable onPress={tapNow} style={({ pressed }) => [styles.tapBtn, pressed && styles.pressed]}>
             <Feather name="refresh-cw" size={16} color="#fff" />
             <Text style={styles.tapBtnText}>Scan again</Text>
           </Pressable>
-        ) : errorText ? null : (
-          <Pressable onPress={tapNow} style={styles.linkBtn}>
-            <Text style={[styles.link, styles.linkLight]}>Scan now</Text>
-          </Pressable>
-        )}
+        ) : null}
 
         <Pressable onPress={onManual} style={styles.linkBtn}>
           <Text style={[styles.link, styles.linkLight]}>Answer questions instead</Text>
