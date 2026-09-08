@@ -248,6 +248,25 @@ async def topup_confirm(
         pay.status = "paid"
         pay.paid_at = datetime.utcnow()
         pay.razorpay_payment_id = body.razorpay_payment_id
+        session.add(pay)
+        session.commit()
+
+    # Atomically claim the paid->consumed transition. Only the request that wins
+    # this UPDATE credits the wallet — a concurrent duplicate confirm gets 0 rows
+    # and returns the current balance without double-crediting.
+    from sqlalchemy import text
+
+    claimed = session.exec(
+        text(
+            "UPDATE payments SET status='consumed', consumed_at=:now, "
+            "reference_type='wallet_topup', reference_id=:rid "
+            "WHERE id=:id AND status='paid' RETURNING id"
+        ).bindparams(now=datetime.utcnow(), rid=str(pay.id), id=str(pay.id))
+    ).first()
+    session.commit()
+    if claimed is None:
+        w = wallet_svc.get_or_create_wallet(session, user)
+        return TopupConfirmOut(balance_paise=w.balance_paise, credited_paise=amount, bonus_paise=bonus)
 
     wallet_svc.credit(
         session, user,
@@ -262,13 +281,6 @@ async def topup_confirm(
             description=f"Top-up bonus ₹{bonus // 100}",
             reference_type="wallet_topup", reference_id=str(pay.id),
         )
-
-    pay.status = "consumed"
-    pay.consumed_at = datetime.utcnow()
-    pay.reference_type = "wallet_topup"
-    pay.reference_id = str(pay.id)
-    session.add(pay)
-    session.commit()
 
     w = wallet_svc.get_or_create_wallet(session, user)
     return TopupConfirmOut(balance_paise=w.balance_paise, credited_paise=amount, bonus_paise=bonus)
