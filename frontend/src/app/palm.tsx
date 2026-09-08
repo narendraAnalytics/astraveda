@@ -35,15 +35,19 @@ import {
   RELATIONS,
   RELATIONSHIP_STATUS,
   THUMB_FLEX,
+  createPalmCheckout,
   generatePalm,
   getPalm,
   getPalmReading,
+  pendingPalmCheckout,
   scanPalm,
   type Gender,
   type Hand,
   type HandShape,
   type LineKey,
   type Mount,
+  type PalmCheckout,
+  type PalmCheckoutFields,
   type PalmReading,
   type Relation,
   type RelationshipStatus,
@@ -54,6 +58,9 @@ import {
   savePalmPhoto,
   writePalmCache,
 } from '../lib/palm-cache';
+import { RazorpayCheckout, type CheckoutResult } from '../components/razorpay-checkout';
+import { PayMethodSheet } from '../components/wallet/pay-method-sheet';
+import { useWallet } from '../hooks/use-wallet';
 import { ChakraBackdrop } from '../components/palm/chakra-backdrop';
 import { PalmLoader } from '../components/palm/palm-loader';
 import { HandDiagram } from '../components/palm/hand-diagram';
@@ -66,6 +73,10 @@ const CREAM = '#fffaf2';
 const HEADER_GRADIENT = ['#7a1f5c', '#c0356f', '#e2745a'] as const;
 
 type Phase = 'loading' | 'choose' | 'scan' | 'form' | 'generating' | 'results';
+type Paid = { payment_id: string; razorpay_payment_id?: string; razorpay_signature?: string };
+type PayPath = 'scan' | 'form';
+
+const PALM_PRICE = 4000; // ₹40 — display only; the server sets the real amount
 
 const HAND_OPTIONS: Option[] = HANDS.map((h) => ({ value: h, label: `${h} hand` }));
 const SHAPE_OPTIONS: Option[] = [
@@ -111,6 +122,7 @@ export default function PalmScreen() {
   const { id: idParam, fresh: freshParam } = useLocalSearchParams<{ id?: string; fresh?: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const { balance: walletBalance, refresh: refreshWallet } = useWallet();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [palm, setPalm] = useState<PalmReading | null>(null);
@@ -133,6 +145,13 @@ export default function PalmScreen() {
   const [mounts, setMounts] = useState<Mount[]>([]);
   const [marks, setMarks] = useState<string[]>([]);
   const [pickedPhoto, setPickedPhoto] = useState<string | null>(null);
+
+  // Payment (₹40 per reading — gates both the scan and the guided path)
+  const [checkout, setCheckout] = useState<PalmCheckout | null>(null);
+  const [paid, setPaid] = useState<Paid | null>(null);
+  const [showPay, setShowPay] = useState(false);
+  const [payPath, setPayPath] = useState<PayPath>('scan');
+  const [resumable, setResumable] = useState<{ payment_id: string; person: PalmCheckoutFields } | null>(null);
 
   // Scan state
   const [scanning, setScanning] = useState(false);
@@ -171,6 +190,9 @@ export default function PalmScreen() {
     setMounts([]);
     setMarks([]);
     setPickedPhoto(null);
+    setCheckout(null);
+    setPaid(null);
+    setShowPay(false);
     setScanning(false);
     setScanError(null);
     scanUriRef.current = null;
@@ -230,6 +252,108 @@ export default function PalmScreen() {
     return true;
   }, [step, name, dominantHand, handShape]);
 
+  const person = useCallback(
+    (): PalmCheckoutFields => ({
+      name: name.trim(),
+      relation,
+      gender,
+      relationship_status: relationshipStatus,
+      birth_date: isoDate(birthDate),
+      dominant_hand: dominantHand,
+    }),
+    [name, relation, gender, relationshipStatus, birthDate, dominantHand],
+  );
+
+  const goToPath = useCallback((path: PayPath) => {
+    setScanError(null);
+    if (path === 'scan') {
+      setPhase('scan');
+    } else {
+      setStep(0);
+      setPhase('form');
+    }
+  }, []);
+
+  // ---- resume: a reading already paid for but not yet taken -------------
+  useEffect(() => {
+    if (phase !== 'choose' || idParam || paid) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getTokenRef.current();
+        const { pending } = await pendingPalmCheckout(token);
+        if (!cancelled && pending) setResumable(pending);
+      } catch {
+        // no API / not signed in — nothing to resume
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, idParam, paid]);
+
+  const openPay = useCallback(
+    async (path: PayPath) => {
+      if (path === 'scan' ? !canScan : name.trim().length < 2) return;
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setError(null);
+      setPayPath(path);
+      setShowPay(true);
+    },
+    [canScan, name],
+  );
+
+  const startCheckout = useCallback(
+    async (method: 'card' | 'wallet') => {
+      setError(null);
+      try {
+        const token = await getTokenRef.current();
+        const co = await createPalmCheckout(person(), token, method);
+        if (co.method === 'wallet') {
+          setPaid({ payment_id: co.payment_id });
+          goToPath(payPath);
+        } else {
+          setCheckout(co);
+        }
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 402) setError(e.message);
+        else if (e instanceof ApiError && e.status === 503) setError('Payments are not available right now.');
+        else setError(e instanceof Error ? e.message : 'Could not start checkout');
+      }
+    },
+    [person, payPath, goToPath],
+  );
+
+  const onCheckoutClose = useCallback(
+    (r: CheckoutResult) => {
+      if (r.ok && checkout) {
+        setPaid({
+          payment_id: checkout.payment_id,
+          razorpay_payment_id: r.razorpay_payment_id,
+          razorpay_signature: r.razorpay_signature,
+        });
+        setCheckout(null);
+        goToPath(payPath);
+      } else {
+        setCheckout(null);
+        if (!r.ok && r.reason === 'error') setError(r.message ?? 'Payment could not be completed');
+      }
+    },
+    [checkout, payPath, goToPath],
+  );
+
+  const resume = useCallback(() => {
+    if (!resumable) return;
+    const p = resumable.person;
+    setName(p.name ?? '');
+    setRelation((p.relation as Relation) ?? null);
+    setGender((p.gender as Gender) ?? null);
+    setRelationshipStatus((p.relationship_status as RelationshipStatus) ?? null);
+    if (p.dominant_hand) setDominantHand(p.dominant_hand as Hand);
+    setPaid({ payment_id: resumable.payment_id });
+    setResumable(null);
+  }, [resumable]);
+
   const pickPhoto = useCallback(async (from: 'camera' | 'library') => {
     try {
       const perm =
@@ -285,6 +409,7 @@ export default function PalmScreen() {
           mounts,
           marks,
         },
+        paid,
         token,
       );
       let savedPhoto: string | null = null;
@@ -314,6 +439,7 @@ export default function PalmScreen() {
     mounts,
     marks,
     pickedPhoto,
+    paid,
   ]);
 
   const onScanCaptured = useCallback(
@@ -334,6 +460,7 @@ export default function PalmScreen() {
             image: base64,
             mime_type: mime,
           },
+          paid,
           token,
         );
         const savedPhoto = savePalmPhoto(result.id, uri);
@@ -350,12 +477,14 @@ export default function PalmScreen() {
           setScanError(e.message); // "retake" guidance from the backend
         } else if (e instanceof ApiError && e.status === 429) {
           setScanError('The reading service is busy right now — please try again in a minute.');
+        } else if (e instanceof ApiError && e.status === 402) {
+          setScanError('We could not confirm your payment. Please close and reopen from “Payment received”.');
         } else {
           setScanError(e instanceof Error ? e.message : 'Palm scan failed — please try again.');
         }
       }
     },
-    [name, relation, gender, relationshipStatus, birthDate, dominantHand],
+    [name, relation, gender, relationshipStatus, birthDate, dominantHand, paid],
   );
 
   // ---- reading (phase 2) -------------------------------------------------
@@ -474,7 +603,32 @@ export default function PalmScreen() {
           bottomInset={insets.bottom + 28}
         />
       ) : phase === 'choose' ? (
-        <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 40 }}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 40 }}
+        >
+          {resumable && !paid ? (
+            <Animated.View entering={FadeInDown.duration(300)}>
+              <Pressable onPress={resume} style={({ pressed }) => [styles.resumeCard, pressed && styles.pressed]}>
+                <Feather name="check-circle" size={18} color="#1f6b45" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.resumeTitle}>Payment received</Text>
+                  <Text style={styles.resumeBody}>
+                    Tap to continue {resumable.person.name || 'your'} reading — no charge.
+                  </Text>
+                </View>
+                <Feather name="arrow-right" size={16} color="#1f6b45" />
+              </Pressable>
+            </Animated.View>
+          ) : null}
+
+          {paid ? (
+            <Animated.View entering={FadeInDown.duration(300)} style={styles.paidChip}>
+              <Feather name="check-circle" size={14} color="#1f6b45" />
+              <Text style={styles.paidChipText}>Paid · choose how to read your palm</Text>
+            </Animated.View>
+          ) : null}
+
           <Animated.View entering={FadeInDown.duration(360)} style={styles.card}>
             <Field label="Name">
               <TextInput
@@ -510,7 +664,7 @@ export default function PalmScreen() {
           <Animated.View entering={FadeInDown.delay(80).duration(360)}>
             <Pressable
               disabled={!canScan}
-              onPress={() => { setScanError(null); setPhase('scan'); }}
+              onPress={() => (paid ? goToPath('scan') : openPay('scan'))}
               style={({ pressed }) => [
                 styles.choiceCard,
                 styles.choiceScan,
@@ -525,11 +679,16 @@ export default function PalmScreen() {
                 <View style={styles.choiceTitleRow}>
                   <Text style={styles.choiceTitle}>Scan my palm</Text>
                   <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
+                  {!paid ? (
+                    <View style={styles.priceTag}><Text style={styles.priceTagText}>₹40</Text></View>
+                  ) : null}
                 </View>
                 <Text style={styles.choiceSub}>
-                  {canScan
-                    ? 'Photograph your palm — AI reads the lines and mounts for you.'
-                    : 'Add your name and dominant hand above to continue.'}
+                  {!canScan
+                    ? 'Add your name and dominant hand above to continue.'
+                    : paid
+                      ? 'Photograph your palm — AI reads the lines and mounts for you.'
+                      : 'Photograph your palm — AI reads the lines and mounts. One-time ₹40.'}
                 </Text>
               </View>
               <Feather name="chevron-right" size={20} color="#fff" />
@@ -538,21 +697,36 @@ export default function PalmScreen() {
 
           <Animated.View entering={FadeInDown.delay(140).duration(360)}>
             <Pressable
-              onPress={() => { setStep(0); setPhase('form'); }}
-              style={({ pressed }) => [styles.choiceCard, styles.choiceForm, pressed && styles.pressed]}
+              disabled={name.trim().length < 2}
+              onPress={() => (paid ? goToPath('form') : openPay('form'))}
+              style={({ pressed }) => [
+                styles.choiceCard,
+                styles.choiceForm,
+                name.trim().length < 2 && styles.choiceOff,
+                pressed && styles.pressed,
+              ]}
             >
               <View style={[styles.choiceIcon, styles.choiceIconForm]}>
                 <Feather name="edit-3" size={20} color={ROSE} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.choiceTitle, styles.choiceTitleDark]}>Answer questions</Text>
+                <View style={styles.choiceTitleRow}>
+                  <Text style={[styles.choiceTitle, styles.choiceTitleDark]}>Answer questions</Text>
+                  {!paid ? (
+                    <View style={[styles.priceTag, styles.priceTagDark]}>
+                      <Text style={[styles.priceTagText, styles.priceTagTextDark]}>₹40</Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={[styles.choiceSub, styles.choiceSubDark]}>
-                  Four quick steps about your hand shape, lines and mounts.
+                  Four quick steps about your hand shape, lines and mounts{paid ? '.' : ' · one-time ₹40.'}
                 </Text>
               </View>
               <Feather name="chevron-right" size={20} color={ROSE} />
             </Pressable>
           </Animated.View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
       ) : (
         <ScrollView
@@ -707,6 +881,34 @@ export default function PalmScreen() {
             if (d) setBirthDate(d);
           }}
           onDismiss={() => setShowDob(false)}
+        />
+      ) : null}
+
+      <PayMethodSheet
+        visible={showPay}
+        amountPaise={PALM_PRICE}
+        balancePaise={walletBalance}
+        onClose={() => setShowPay(false)}
+        onAddMoney={() => {
+          setShowPay(false);
+          router.push('/wallet');
+        }}
+        onPick={(m) => {
+          setShowPay(false);
+          startCheckout(m).then(() => refreshWallet());
+        }}
+      />
+
+      {checkout ? (
+        <RazorpayCheckout
+          visible
+          orderId={checkout.order_id}
+          keyId={checkout.key_id}
+          amountPaise={checkout.amount_paise}
+          description="Palm reading"
+          name={userRef.current?.fullName ?? name.trim()}
+          email={userRef.current?.primaryEmailAddress?.emailAddress ?? ''}
+          onClose={onCheckoutClose}
         />
       ) : null}
     </View>
@@ -966,6 +1168,45 @@ const styles = StyleSheet.create({
   },
   choiceForm: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#f0d3e0' },
   choiceOff: { opacity: 0.5 },
+
+  priceTag: {
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 1,
+  },
+  priceTagText: { fontSize: 11, fontWeight: '900', color: ROSE, letterSpacing: 0.3 },
+  priceTagDark: { backgroundColor: '#fdeef3' },
+  priceTagTextDark: { color: ROSE },
+
+  resumeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: 14,
+    backgroundColor: '#eaf7ee',
+    borderWidth: 1,
+    borderColor: '#bfe3cb',
+  },
+  resumeTitle: { fontSize: 13, fontWeight: '700', color: '#1f6b45' },
+  resumeBody: { fontSize: 11, color: '#3f7a5c', marginTop: 1 },
+
+  paidChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 11,
+    marginBottom: 12,
+    borderRadius: 999,
+    backgroundColor: '#eaf7ee',
+    borderWidth: 1,
+    borderColor: '#bfe3cb',
+  },
+  paidChipText: { fontSize: 11, fontWeight: '800', color: '#1f6b45' },
   dobRow: {
     flexDirection: 'row',
     alignItems: 'center',

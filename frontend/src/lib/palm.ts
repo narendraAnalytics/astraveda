@@ -92,6 +92,45 @@ export type PersonFields = {
   birth_date?: string | null; // YYYY-MM-DD
 };
 
+// ---- payment (₹40 per reading, server-authoritative) --------------------
+
+export type PalmCheckoutFields = PersonFields & {
+  name: string;
+  relation?: Relation | null;
+  dominant_hand?: Hand | null;
+};
+
+export type PalmCheckout = {
+  payment_id: string;
+  order_id: string;
+  key_id: string;
+  amount_paise: number;
+  method?: 'card' | 'wallet';
+  currency: string;
+};
+
+export type PaymentProof = {
+  payment_id: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
+};
+
+/** Creates a ₹40 Razorpay order (or a wallet debit) for one palm reading. */
+export function createPalmCheckout(
+  body: PalmCheckoutFields,
+  token: string | null,
+  method: 'card' | 'wallet' = 'card',
+) {
+  return api<PalmCheckout>('/palm/checkout', { method: 'POST', body: { ...body, method }, token });
+}
+
+export function pendingPalmCheckout(token: string | null) {
+  return api<{ pending: null | { payment_id: string; person: PalmCheckoutFields } }>(
+    '/palm/checkout/pending',
+    { token },
+  );
+}
+
 export type GenerateBody = PersonFields & {
   name: string;
   relation?: Relation | null;
@@ -104,8 +143,16 @@ export type GenerateBody = PersonFields & {
   marks: string[];
 };
 
-export function generatePalm(body: GenerateBody, token: string | null) {
-  return api<PalmReading>('/palm/generate', { method: 'POST', body, token });
+export function generatePalm(
+  body: GenerateBody,
+  payment: PaymentProof | { payment_id: string } | null,
+  token: string | null,
+) {
+  return api<PalmReading>('/palm/generate', {
+    method: 'POST',
+    body: { ...body, ...(payment ?? {}) },
+    token,
+  });
 }
 
 export type ScanBody = PersonFields & {
@@ -120,8 +167,16 @@ export type ScanBody = PersonFields & {
  * Analyse a palm photo with Gemini Vision. A 422 means "retake the photo" —
  * `ApiError.message` carries the reason to show the user.
  */
-export function scanPalm(body: ScanBody, token: string | null) {
-  return api<PalmReading>('/palm/scan', { method: 'POST', body, token });
+export function scanPalm(
+  body: ScanBody,
+  payment: PaymentProof | { payment_id: string } | null,
+  token: string | null,
+) {
+  return api<PalmReading>('/palm/scan', {
+    method: 'POST',
+    body: { ...body, ...(payment ?? {}) },
+    token,
+  });
 }
 
 export function getLatestPalm(token: string | null) {

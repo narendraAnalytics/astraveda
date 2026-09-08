@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | puja | wallet_topup
+    purpose: str = Field(default="kundali")  # kundali | face | palm | aura | dream | vastu | puja | wallet_topup
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -175,6 +175,8 @@ class PalmReading(SQLModel, table=True):
     source: str = Field(default="guided")  # guided | scan  (how the features were captured)
 
     reading_en: str | None = None
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
