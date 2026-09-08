@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     razorpay_webhook_secret: str = ""
     # Price of one Kundali, in paise. ₹15 = 1500. Server-set, never from client.
     kundali_price_paise: int = 1500
+    # Price of one Face Reading, in paise. ₹45 = 4500. Server-set, never from client.
+    face_price_paise: int = 4500
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -17,6 +17,7 @@ export function OptionGroup({
   multi = false,
   max,
   columns = 1,
+  accent = ROSE,
 }: {
   options: Option[];
   value: string | string[] | null;
@@ -24,6 +25,7 @@ export function OptionGroup({
   multi?: boolean;
   max?: number;
   columns?: 1 | 2 | 3;
+  accent?: string;
 }) {
   const selected = Array.isArray(value) ? value : value ? [value] : [];
 
@@ -52,14 +54,18 @@ export function OptionGroup({
           >
             <Pressable
               onPress={() => toggle(opt.value)}
-              style={({ pressed }) => [styles.card, on && styles.cardOn, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.card,
+                on && { borderColor: accent, backgroundColor: `${accent}14` },
+                pressed && styles.pressed,
+              ]}
             >
               {opt.glyph ? <Text style={styles.glyph}>{opt.glyph}</Text> : null}
               <View style={styles.textWrap}>
-                <Text style={[styles.label, on && styles.labelOn]}>{opt.label}</Text>
+                <Text style={[styles.label, on && { color: accent }]}>{opt.label}</Text>
                 {opt.hint ? <Text style={styles.hint}>{opt.hint}</Text> : null}
               </View>
-              <View style={[styles.check, on && styles.checkOn]}>
+              <View style={[styles.check, on && { backgroundColor: accent, borderColor: accent }]}>
                 {on ? <Feather name="check" size={12} color="#fff" /> : null}
               </View>
             </Pressable>

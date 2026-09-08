@@ -1,11 +1,16 @@
-import { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import Svg, { Defs, LinearGradient as SvgGradient, Stop, Text as SvgText } from 'react-native-svg';
 
-// The palm reading model is asked to use these headings, each on its own line.
-const HEADING_ICON: Record<string, keyof typeof Feather.glyphMap> = {
+import { AiReadingView, type ReadingAccent } from '../ai-reading-view';
+
+const PALM_ACCENT: ReadingAccent = {
+  from: '#c0356f',
+  to: '#c18426',
+  cardBg: '#fffdfb',
+  cardBorder: '#f2dde4',
+  dropCap: '#c0356f',
+};
+
+const HEADING_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   'hand nature': 'aperture',
   'heart line & relationships': 'heart',
   'head line & mind': 'zap',
@@ -15,148 +20,6 @@ const HEADING_ICON: Record<string, keyof typeof Feather.glyphMap> = {
   guidance: 'compass',
 };
 
-type Section = { heading: string | null; body: string };
-
-function parseReading(text: string): Section[] {
-  const out: { heading: string | null; body: string[] }[] = [];
-  let cur: { heading: string | null; body: string[] } | null = null;
-
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw
-      .replace(/^#+\s*/, '')
-      .replace(/\*\*/g, '')
-      .replace(/^[-•*]\s+/, '')
-      .trim();
-    if (!line) continue;
-
-    const looksLikeHeading =
-      line.length <= 46 &&
-      !/[.!?:,]$/.test(line) &&
-      line.split(/\s+/).length <= 7 &&
-      /^[A-Z(]/.test(line);
-
-    if (looksLikeHeading) {
-      cur = { heading: line, body: [] };
-      out.push(cur);
-    } else {
-      if (!cur) {
-        cur = { heading: null, body: [] };
-        out.push(cur);
-      }
-      cur.body.push(line);
-    }
-  }
-
-  return out
-    .filter((s) => s.heading || s.body.length)
-    .map((s) => ({ heading: s.heading, body: s.body.join('\n\n') }));
-}
-
-function GradientHeading({ text, id }: { text: string; id: string }) {
-  return (
-    <Svg height={24} width="100%">
-      <Defs>
-        <SvgGradient id={id} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor="#c0356f" />
-          <Stop offset="0.55" stopColor="#d6317f" />
-          <Stop offset="1" stopColor="#c18426" />
-        </SvgGradient>
-      </Defs>
-      <SvgText x={0} y={18} fontSize={16} fontWeight="800" fill={`url(#${id})`} letterSpacing={0.2}>
-        {text}
-      </SvgText>
-    </Svg>
-  );
-}
-
-/** First paragraph of the whole reading gets an illuminated drop-cap. */
-function Paragraph({ text, dropCap }: { text: string; dropCap?: boolean }) {
-  if (dropCap && text.length > 1) {
-    return (
-      <Text style={styles.body}>
-        <Text style={styles.dropCap}>{text[0]}</Text>
-        {text.slice(1)}
-      </Text>
-    );
-  }
-  return <Text style={styles.body}>{text}</Text>;
-}
-
 export function PalmReadingView({ text }: { text: string }) {
-  const sections = useMemo(() => parseReading(text), [text]);
-
-  if (sections.length === 0) {
-    return <Text style={styles.body}>{text}</Text>;
-  }
-
-  let firstParaSeen = false;
-
-  return (
-    <View>
-      {sections.map((s, i) => {
-        const key = s.heading?.toLowerCase() ?? '';
-        const icon = HEADING_ICON[key] ?? 'star';
-        const paras = s.body ? s.body.split('\n\n') : [];
-        return (
-          <View key={i} style={[styles.card, i > 0 && styles.cardGap]}>
-            {s.heading ? (
-              <View style={styles.headingRow}>
-                <LinearGradient
-                  colors={['#c0356f', '#d6317f']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.iconChip}
-                >
-                  <Feather name={icon} size={13} color="#fff" />
-                </LinearGradient>
-                <View style={styles.headingTextWrap}>
-                  <GradientHeading text={s.heading} id={`ph${i}`} />
-                  <LinearGradient
-                    colors={['#c0356f', '#c18426']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.accentBar}
-                  />
-                </View>
-              </View>
-            ) : null}
-            {paras.map((para, j) => {
-              const isFirst = !firstParaSeen;
-              if (isFirst) firstParaSeen = true;
-              return (
-                <View key={j} style={j > 0 ? styles.paraGap : undefined}>
-                  <Paragraph text={para} dropCap={isFirst} />
-                </View>
-              );
-            })}
-          </View>
-        );
-      })}
-    </View>
-  );
+  return <AiReadingView text={text} accent={PALM_ACCENT} headingIcons={HEADING_ICONS} />;
 }
-
-const ROSE_DROP = '#c0356f';
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: '#fffdfb',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#f2dde4',
-    padding: 15,
-  },
-  cardGap: { marginTop: 12 },
-  headingRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
-  iconChip: { width: 26, height: 26, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  headingTextWrap: { flex: 1 },
-  accentBar: { height: 3, width: 46, borderRadius: 2, marginTop: 3 },
-  body: { fontSize: 15, lineHeight: 25, color: '#463a33' },
-  paraGap: { marginTop: 12 },
-  dropCap: {
-    fontSize: 34,
-    lineHeight: 34,
-    fontWeight: '900',
-    color: ROSE_DROP,
-  },
-});

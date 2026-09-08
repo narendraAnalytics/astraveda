@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | (later: palm, wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | (later: wallet_topup …)
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -175,5 +175,37 @@ class PalmReading(SQLModel, table=True):
     source: str = Field(default="guided")  # guided | scan  (how the features were captured)
 
     reading_en: str | None = None
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class FaceReading(SQLModel, table=True):
+    """One Vedic face reading (Mukha Samudrika Shastra) for a user.
+
+    Gemini reads the selfie into structured features; Sarvam turns them into the
+    narrative (cached on `reading_en`). The photo is never stored server-side —
+    it lives only in the scan request and, as a keepsake, on the user's device.
+    Every reading is a paid ₹45 Razorpay order (server-authoritative).
+    """
+
+    __tablename__ = "face_readings"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    name: str
+    relation: str | None = None  # Self | Spouse | Child | ...
+
+    face_shape: str  # Oval | Round | Square | Oblong | Heart | Diamond | Unknown
+
+    features: dict = Field(default_factory=dict, sa_type=JSON)  # forehead, eyes, nose, ...
+    marks: list = Field(default_factory=list, sa_type=JSON)
+    profile: dict = Field(default_factory=dict, sa_type=JSON)  # normalized facts fed to Sarvam
+
+    source: str = Field(default="scan")  # scan | guided
+
+    reading_en: str | None = None
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -364,6 +364,10 @@ export default function HomeScreen() {
       router.push(isSignedIn ? '/palm' : '/(tabs)/profile');
       return;
     }
+    if (tool.key === 'face') {
+      router.push(isSignedIn ? '/face' : '/(tabs)/profile');
+      return;
+    }
     Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [
       { text: t('common.keepExploring'), style: 'cancel' },
       { text: t('tools.startReading'), onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },

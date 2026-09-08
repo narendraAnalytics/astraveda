@@ -9,11 +9,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useKundaliList } from '../../hooks/use-kundali-list';
 import { usePalmList } from '../../hooks/use-palm-list';
+import { useFaceList } from '../../hooks/use-face-list';
 import type { KundaliSummary } from '../../lib/kundali';
 import type { PalmSummary } from '../../lib/palm';
+import type { FaceSummary } from '../../lib/face';
 
 const PURPLE = '#8f29dd';
 const ROSE = '#c0356f';
+const TEAL = '#0f8a7e';
 const CREAM = '#fffaf2';
 
 const RELATION_TINT: Record<string, string> = {
@@ -24,7 +27,7 @@ const RELATION_TINT: Record<string, string> = {
 const prettyDate = (iso: string) =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
-type Tab = 'charts' | 'palms';
+type Tab = 'charts' | 'palms' | 'faces';
 
 export default function AstrologyScreen() {
   const insets = useSafeAreaInsets();
@@ -34,14 +37,17 @@ export default function AstrologyScreen() {
 
   const kundalis = useKundaliList();
   const palms = usePalmList();
+  const faces = useFaceList();
   const { reload: reloadKundalis, remove: removeKundali } = kundalis;
   const { reload: reloadPalms, remove: removePalm } = palms;
+  const { reload: reloadFaces, remove: removeFace } = faces;
 
   useFocusEffect(
     useCallback(() => {
       reloadKundalis();
       reloadPalms();
-    }, [reloadKundalis, reloadPalms]),
+      reloadFaces();
+    }, [reloadKundalis, reloadPalms, reloadFaces]),
   );
 
   const confirmDeleteChart = useCallback(
@@ -64,6 +70,16 @@ export default function AstrologyScreen() {
     [removePalm],
   );
 
+  const confirmDeleteFace = useCallback(
+    (f: FaceSummary) => {
+      Alert.alert('Delete reading', `Remove ${f.name}'s face reading? This can't be undone.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: () => removeFace(f.id) },
+      ]);
+    },
+    [removeFace],
+  );
+
   if (!isLoaded) {
     return (
       <View style={[styles.screen, styles.centered]}>
@@ -73,33 +89,35 @@ export default function AstrologyScreen() {
   }
   if (!isSignedIn) return <Redirect href="/(tabs)/profile" />;
 
-  const accent = tab === 'charts' ? PURPLE : ROSE;
+  const accent = tab === 'charts' ? PURPLE : tab === 'palms' ? ROSE : TEAL;
+  const headerColors: Record<Tab, readonly [string, string, string]> = {
+    charts: ['#2a1147', '#4a1c6e', '#6a2597'],
+    palms: ['#7a1f5c', '#c0356f', '#e2745a'],
+    faces: ['#0c5f57', '#0f8a7e', '#3fa66b'],
+  };
+  const headerTitle: Record<Tab, string> = { charts: 'Your Charts', palms: 'Your Palms', faces: 'Your Faces' };
+  const headerSub: Record<Tab, string> = {
+    charts: 'Vedic Kundalis for you and your family.',
+    palms: 'Hasta Samudrika palm readings for you and your family.',
+    faces: 'Mukha Samudrika face readings for you and your family.',
+  };
+  const segIcon: Record<Tab, keyof typeof Feather.glyphMap> = { charts: 'star', palms: 'aperture', faces: 'user' };
+  const segLabel: Record<Tab, string> = { charts: 'Charts', palms: 'Palms', faces: 'Faces' };
 
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={tab === 'charts' ? ['#2a1147', '#4a1c6e', '#6a2597'] : ['#7a1f5c', '#c0356f', '#e2745a']}
-        style={[styles.header, { paddingTop: insets.top + 16 }]}
-      >
-        <Text style={styles.headerTitle}>{tab === 'charts' ? 'Your Charts' : 'Your Palms'}</Text>
-        <Text style={styles.headerSub}>
-          {tab === 'charts'
-            ? 'Vedic Kundalis for you and your family.'
-            : 'Hasta Samudrika palm readings you and your family.'}
-        </Text>
+      <LinearGradient colors={headerColors[tab]} style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Text style={styles.headerTitle}>{headerTitle[tab]}</Text>
+        <Text style={styles.headerSub}>{headerSub[tab]}</Text>
       </LinearGradient>
 
       <View style={styles.segment}>
-        {(['charts', 'palms'] as Tab[]).map((t) => {
+        {(['charts', 'palms', 'faces'] as Tab[]).map((t) => {
           const on = tab === t;
           return (
             <Pressable key={t} onPress={() => setTab(t)} style={[styles.segBtn, on && styles.segBtnOn]}>
-              <Feather
-                name={t === 'charts' ? 'star' : 'aperture'}
-                size={14}
-                color={on ? '#fff' : '#9b7663'}
-              />
-              <Text style={[styles.segText, on && styles.segTextOn]}>{t === 'charts' ? 'Charts' : 'Palms'}</Text>
+              <Feather name={segIcon[t]} size={14} color={on ? '#fff' : '#9b7663'} />
+              <Text style={[styles.segText, on && styles.segTextOn]}>{segLabel[t]}</Text>
             </Pressable>
           );
         })}
@@ -107,13 +125,10 @@ export default function AstrologyScreen() {
 
       <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 120 }}>
         <Pressable
-          onPress={() =>
-            router.push(
-              tab === 'charts'
-                ? { pathname: '/kundali', params: { fresh: String(Date.now()) } }
-                : { pathname: '/palm', params: { fresh: String(Date.now()) } },
-            )
-          }
+          onPress={() => {
+            const pathname = tab === 'charts' ? '/kundali' : tab === 'palms' ? '/palm' : '/face';
+            router.push({ pathname, params: { fresh: String(Date.now()) } });
+          }}
           style={({ pressed }) => [styles.newBtn, { backgroundColor: accent }, pressed && styles.pressed]}
         >
           <Feather name="plus" size={16} color="#fff" />
@@ -128,13 +143,21 @@ export default function AstrologyScreen() {
             onOpen={(id) => router.push(`/kundali?id=${id}`)}
             onDelete={confirmDeleteChart}
           />
-        ) : (
+        ) : tab === 'palms' ? (
           <PalmsList
             items={palms.items}
             loading={palms.loading}
             error={palms.error}
             onOpen={(id) => router.push(`/palm?id=${id}`)}
             onDelete={confirmDeletePalm}
+          />
+        ) : (
+          <FacesList
+            items={faces.items}
+            loading={faces.loading}
+            error={faces.error}
+            onOpen={(id) => router.push(`/face?id=${id}`)}
+            onDelete={confirmDeleteFace}
           />
         )}
       </ScrollView>
@@ -268,6 +291,74 @@ function PalmsList({
               <View style={styles.readyRow}>
                 <Feather name="check-circle" size={11} color={ROSE} />
                 <Text style={styles.readyText}>Reading ready</Text>
+              </View>
+            ) : (
+              <Text style={styles.dasha}>Tap to open your reading</Text>
+            )}
+          </Pressable>
+        </Animated.View>
+      ))}
+      <Text style={styles.hint}>Long-press a reading to delete it.</Text>
+      {error ? <Text style={styles.errorText}>Showing saved copies — {error}</Text> : null}
+    </>
+  );
+}
+
+function FacesList({
+  items,
+  loading,
+  error,
+  onOpen,
+  onDelete,
+}: {
+  items: FaceSummary[];
+  loading: boolean;
+  error: string | null;
+  onOpen: (id: string) => void;
+  onDelete: (f: FaceSummary) => void;
+}) {
+  if (loading && items.length === 0) {
+    return (
+      <View style={[styles.centered, { paddingVertical: 60 }]}>
+        <ActivityIndicator color={TEAL} />
+      </View>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <Empty
+        icon="user"
+        tint={TEAL}
+        bg="#e2f4f0"
+        title="No face readings yet"
+        body="Take a selfie and receive a Vedic Mukha Samudrika reading — saved here for you to revisit."
+        error={error}
+      />
+    );
+  }
+  return (
+    <>
+      {items.map((f, i) => (
+        <Animated.View key={f.id} entering={FadeIn.delay(i * 40)}>
+          <Pressable
+            onPress={() => onOpen(f.id)}
+            onLongPress={() => onDelete(f)}
+            style={({ pressed }) => [styles.card, pressed && styles.pressedCard]}
+          >
+            <View style={styles.cardRow}>
+              <Avatar name={f.name} tint={RELATION_TINT[f.relation ?? 'Other']} />
+              <View style={{ flex: 1 }}>
+                <NameRow name={f.name} relation={f.relation} />
+                <Text style={styles.meta} numberOfLines={1}>
+                  {f.source === 'scan' ? '📷 Scanned · ' : ''}{f.headline_trait}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="#c7ad97" />
+            </View>
+            {f.has_reading ? (
+              <View style={styles.readyRow}>
+                <Feather name="check-circle" size={11} color={TEAL} />
+                <Text style={[styles.readyText, { color: TEAL }]}>Reading ready</Text>
               </View>
             ) : (
               <Text style={styles.dasha}>Tap to open your reading</Text>
