@@ -66,10 +66,6 @@ export function AartiThali({
     <Animated.View pointerEvents="none" style={[styles.wrap, style]}>
       <Svg width={THALI} height={THALI} viewBox="0 0 96 96">
         <Defs>
-          <RadialGradient id="glow" cx="50%" cy="46%" r="50%">
-            <Stop offset="0" stopColor="#ffe0a3" stopOpacity={0.85} />
-            <Stop offset="1" stopColor="#ffb347" stopOpacity={0} />
-          </RadialGradient>
           <RadialGradient id="flame" cx="50%" cy="70%" r="65%">
             <Stop offset="0" stopColor="#fff4c2" stopOpacity={1} />
             <Stop offset="0.55" stopColor="#ffb733" stopOpacity={1} />
@@ -77,7 +73,6 @@ export function AartiThali({
           </RadialGradient>
         </Defs>
 
-        <Ellipse cx={48} cy={48} rx={46} ry={46} fill="url(#glow)" />
         <Ellipse cx={48} cy={62} rx={30} ry={9} fill="#c9871f" />
         <Ellipse cx={48} cy={58} rx={28} ry={8} fill="#f0b643" />
         <Ellipse cx={48} cy={56} rx={22} ry={5} fill="#ffd27a" />

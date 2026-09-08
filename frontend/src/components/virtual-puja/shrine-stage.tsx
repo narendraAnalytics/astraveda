@@ -45,7 +45,6 @@ export function ShrineStage({
   reduceMotion,
 }: Props) {
   const breathe = useSharedValue(0);
-  const glow = useSharedValue(0);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -57,14 +56,9 @@ export function ShrineStage({
     return () => cancelAnimation(breathe);
   }, [reduceMotion, breathe]);
 
-  useEffect(() => {
-    glow.value = withTiming(aartiOn ? 1 : 0, { duration: 700 });
-  }, [aartiOn, glow]);
-
   const shrineStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + breathe.value * 0.03 }],
   }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: 0.15 + glow.value * 0.6 }));
 
   const hasImage = !!temple.image;
 
@@ -101,9 +95,6 @@ export function ShrineStage({
           <View style={styles.vignette} pointerEvents="none" />
         </>
       )}
-
-      {/* warm aarti light */}
-      <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />
 
       {!hasImage ? (
         <Animated.View style={[styles.shrine, shrineStyle]} pointerEvents="none">
@@ -175,15 +166,6 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     borderWidth: 40,
     borderColor: 'rgba(0,0,0,0.14)',
-  },
-  glow: {
-    position: 'absolute',
-    top: '30%',
-    alignSelf: 'center',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
-    backgroundColor: '#ffcf8a',
   },
   edgeVignette: {
     position: 'absolute',
