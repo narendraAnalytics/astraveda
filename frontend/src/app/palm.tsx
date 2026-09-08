@@ -90,10 +90,17 @@ const isoDate = (d: Date | null) =>
   d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` : null;
 
 const LINE_LABEL: Record<LineKey, string> = {
-  heart: 'Heart line (Hridaya)',
-  head: 'Head line (Mastaka)',
-  life: 'Life line (Jeevana)',
-  fate: 'Fate line (Bhagya)',
+  heart: 'Heart line · Hridaya',
+  head: 'Head line · Mastaka',
+  life: 'Life line · Jeevana',
+  fate: 'Fate line · Bhagya',
+};
+
+const LINE_COLOR: Record<LineKey, string> = {
+  heart: '#e0567f',
+  head: '#c18426',
+  life: '#5aa17a',
+  fate: '#7a5cc0',
 };
 
 const STEP_TITLES = ['Your hand', 'The major lines', 'The mounts', 'Marks & photo'];
@@ -802,6 +809,7 @@ function Results({
   ].filter(Boolean) as { label: string; value: string }[];
 
   const lineFacts = LINE_KEYS.filter((k) => palm.lines[k]).map((k) => ({
+    key: k,
     label: LINE_LABEL[k],
     value: palm.lines[k] as string,
   }));
@@ -871,10 +879,15 @@ function Results({
       {lineFacts.length > 0 ? (
         <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.section}>
           <Text style={styles.sectionTitle}>The Rekhas</Text>
-          {lineFacts.map((f) => (
-            <View key={f.label} style={styles.lineRow}>
-              <Text style={styles.lineName}>{f.label}</Text>
-              <Text style={styles.lineValue}>{f.value}</Text>
+          {lineFacts.map((f, i) => (
+            <View key={f.key} style={[styles.lineRow, i > 0 && styles.lineRowDivider]}>
+              <View style={[styles.lineDot, { backgroundColor: LINE_COLOR[f.key] }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lineName}>{f.label}</Text>
+                <Text style={styles.lineValue}>
+                  {f.value.charAt(0).toUpperCase() + f.value.slice(1)}
+                </Text>
+              </View>
             </View>
           ))}
         </Animated.View>
@@ -1119,9 +1132,11 @@ const styles = StyleSheet.create({
   mountChip: { borderRadius: 10, backgroundColor: '#fdeef3', paddingVertical: 5, paddingHorizontal: 10 },
   mountChipText: { fontSize: 11, fontWeight: '700', color: ROSE },
 
-  lineRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  lineName: { fontSize: 12, fontWeight: '700', color: '#4a2f20', flex: 1 },
-  lineValue: { fontSize: 12, color: '#7a5a3f', textAlign: 'right', flexShrink: 1, marginLeft: 10 },
+  lineRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 11 },
+  lineRowDivider: { borderTopWidth: 1, borderTopColor: '#f3e6d5' },
+  lineDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
+  lineName: { fontSize: 12.5, fontWeight: '800', color: '#4a2f20', letterSpacing: 0.2 },
+  lineValue: { fontSize: 13.5, lineHeight: 19, color: '#6e5647', marginTop: 3 },
 
   readingSection: { marginTop: 18 },
   readingTitle: { marginLeft: 4, marginBottom: 14 },
