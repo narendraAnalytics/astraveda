@@ -5,6 +5,11 @@
 // NOTE: Razorpay officially prefers their native SDK; WebView UPI-intent /
 // netbanking + 3-D Secure have known limits. Fine for test-mode cards; swap to
 // the native SDK before taking real UPI money (backend stays identical).
+//
+// Test mode (domestic — 4111 1111 1111 1111 is now rejected as international):
+//   Visa       4100 2800 0000 1007
+//   Mastercard 5500 6700 0000 1002   (any future expiry, any CVV, click "Success")
+//   UPI        success@razorpay / failure@razorpay
 import { useMemo } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { WebView } from 'react-native-webview';
