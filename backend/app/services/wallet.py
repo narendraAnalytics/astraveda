@@ -51,7 +51,7 @@ def get_or_create_wallet(session: Session, user: User) -> Wallet:
 def _lock(session: Session, wallet_id: UUID) -> None:
     # Postgres row lock; harmless no-op on SQLite.
     try:
-        session.exec(text("SELECT balance_paise FROM wallets WHERE id = :id FOR UPDATE").bindparams(id=str(wallet_id)))
+        session.execute(text("SELECT balance_paise FROM wallets WHERE id = :id FOR UPDATE").bindparams(id=wallet_id))
     except Exception:  # noqa: BLE001
         pass
 

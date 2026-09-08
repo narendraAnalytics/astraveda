@@ -256,12 +256,12 @@ async def topup_confirm(
     # and returns the current balance without double-crediting.
     from sqlalchemy import text
 
-    claimed = session.exec(
+    claimed = session.execute(
         text(
             "UPDATE payments SET status='consumed', consumed_at=:now, "
             "reference_type='wallet_topup', reference_id=:rid "
             "WHERE id=:id AND status='paid' RETURNING id"
-        ).bindparams(now=datetime.utcnow(), rid=str(pay.id), id=str(pay.id))
+        ).bindparams(now=datetime.utcnow(), rid=str(pay.id), id=pay.id)
     ).first()
     session.commit()
     if claimed is None:
