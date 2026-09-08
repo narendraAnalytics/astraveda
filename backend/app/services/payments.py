@@ -13,11 +13,13 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 from functools import lru_cache
 
 from app.config import get_settings
 
 settings = get_settings()
+log = logging.getLogger("astraveda.payments")
 
 
 class PaymentError(RuntimeError):
@@ -83,14 +85,36 @@ def order_is_paid(order_id: str) -> bool:
 
 def verify_webhook(*, body: bytes, signature: str) -> dict:
     """Verify the `X-Razorpay-Signature` HMAC over the raw request body and
-    return the parsed event. Raises PaymentError on any mismatch."""
-    secret = settings.razorpay_webhook_secret
-    if not secret:
+    return the parsed event. Raises PaymentError on any mismatch.
+
+    Razorpay signs the raw bytes with the *webhook* secret (the value you set
+    when creating the webhook — NOT the API key secret). We tolerate an env var
+    that picked up surrounding whitespace/newlines, which is a common cause of
+    a mismatch that otherwise looks identical.
+    """
+    raw = settings.razorpay_webhook_secret
+    if not raw:
         raise PaymentError("RAZORPAY_WEBHOOK_SECRET is not configured")
-    expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, signature or ""):
-        raise PaymentError("Webhook signature verification failed")
-    try:
-        return json.loads(body.decode("utf-8"))
-    except ValueError as exc:
-        raise PaymentError("Webhook body is not valid JSON") from exc
+    got = signature or ""
+    candidates = {raw, raw.strip()}
+    for secret in candidates:
+        expected = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+        if hmac.compare_digest(expected, got):
+            try:
+                return json.loads(body.decode("utf-8"))
+            except ValueError as exc:
+                raise PaymentError("Webhook body is not valid JSON") from exc
+
+    # Nothing matched — emit a leak-free diagnostic to pin down which case it is.
+    expected_stripped = hmac.new(
+        raw.strip().encode("utf-8"), body, hashlib.sha256
+    ).hexdigest()
+    log.warning(
+        "webhook HMAC mismatch: secret_len=%d had_surrounding_ws=%s "
+        "got_sig=%s... expected=%s...",
+        len(raw),
+        raw != raw.strip(),
+        got[:10],
+        expected_stripped[:10],
+    )
+    raise PaymentError("Webhook signature verification failed")
