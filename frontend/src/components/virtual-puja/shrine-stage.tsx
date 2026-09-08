@@ -77,7 +77,15 @@ export function ShrineStage({
       {/* shrine / deity */}
       <Animated.View style={[styles.shrine, shrineStyle]} pointerEvents="none">
         {temple.image ? (
-          <Image source={{ uri: temple.image }} style={styles.deity} contentFit="contain" />
+          <View style={styles.deityWrap}>
+            <View style={styles.deityHalo} />
+            <Image
+              source={{ uri: temple.image }}
+              style={styles.deity}
+              contentFit="contain"
+              transition={300}
+            />
+          </View>
         ) : (
           <View style={styles.om}>
             <Text style={styles.omGlyph}>ॐ</Text>
@@ -151,7 +159,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffcf8a',
   },
   shrine: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
-  deity: { width: '78%', height: '62%' },
+  deityWrap: { width: '100%', flex: 1, alignItems: 'center', justifyContent: 'center' },
+  deityHalo: {
+    position: 'absolute',
+    width: '82%',
+    aspectRatio: 1,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,224,170,0.16)',
+  },
+  deity: { width: '88%', height: '86%' },
   om: {
     width: 128,
     height: 128,
