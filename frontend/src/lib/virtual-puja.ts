@@ -52,9 +52,9 @@ export const VIRTUAL_TEMPLES: VirtualTemple[] = [
     mantra: 'ॐ नमः शिवाय',
     tradition: 'shiva',
     colors: ['#20263f', '#3a3c66', '#7d5aa6'],
-    // keep .png (no f_auto) so a transparent cutout stays transparent on the dark shrine
+    // opaque photo → full-bleed shrine backdrop; f_auto/q_auto keeps it light
     image:
-      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_640,c_fit/v1788882821/lordsiva_aezrgu.png',
+      'https://res.cloudinary.com/dkqbzwicr/image/upload/w_820,ar_1:1,c_fill,f_auto,q_auto/v1788882821/lordsiva_aezrgu.png',
   },
   {
     id: 'tirupati',

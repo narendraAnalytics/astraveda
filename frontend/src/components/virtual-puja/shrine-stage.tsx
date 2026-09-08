@@ -66,34 +66,54 @@ export function ShrineStage({
   }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: 0.15 + glow.value * 0.6 }));
 
+  const hasImage = !!temple.image;
+
   return (
     <View style={[styles.stage, { width, height }]}>
-      <LinearGradient colors={temple.colors} style={StyleSheet.absoluteFill} />
-      <View style={styles.vignette} pointerEvents="none" />
+      {hasImage ? (
+        <>
+          {/* full-bleed shrine photo with a slow breathe (Ken Burns) */}
+          <Animated.View style={[StyleSheet.absoluteFill, shrineStyle]} pointerEvents="none">
+            <Image
+              source={{ uri: temple.image }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={350}
+            />
+          </Animated.View>
+          {/* blend it into the frame — soft top + strong bottom so bell / caption read */}
+          <LinearGradient
+            colors={[
+              'rgba(10,8,14,0.42)',
+              'rgba(10,8,14,0.04)',
+              'rgba(10,8,14,0.10)',
+              'rgba(8,6,12,0.82)',
+            ]}
+            locations={[0, 0.3, 0.62, 1]}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          />
+          <View style={styles.edgeVignette} pointerEvents="none" />
+        </>
+      ) : (
+        <>
+          <LinearGradient colors={temple.colors} style={StyleSheet.absoluteFill} />
+          <View style={styles.vignette} pointerEvents="none" />
+        </>
+      )}
 
       {/* warm aarti light */}
       <Animated.View style={[styles.glow, glowStyle]} pointerEvents="none" />
 
-      {/* shrine / deity */}
-      <Animated.View style={[styles.shrine, shrineStyle]} pointerEvents="none">
-        {temple.image ? (
-          <View style={styles.deityWrap}>
-            <View style={styles.deityHalo} />
-            <Image
-              source={{ uri: temple.image }}
-              style={styles.deity}
-              contentFit="contain"
-              transition={300}
-            />
-          </View>
-        ) : (
+      {!hasImage ? (
+        <Animated.View style={[styles.shrine, shrineStyle]} pointerEvents="none">
           <View style={styles.om}>
             <Text style={styles.omGlyph}>ॐ</Text>
           </View>
-        )}
-        <Text style={styles.deityName}>{temple.deity}</Text>
-        <Text style={styles.mantra}>{temple.mantra}</Text>
-      </Animated.View>
+          <Text style={styles.deityName}>{temple.deity}</Text>
+          <Text style={styles.mantra}>{temple.mantra}</Text>
+        </Animated.View>
+      ) : null}
 
       {rippleTick > 0 ? (
         <Ripple key={rippleTick} />
@@ -107,11 +127,18 @@ export function ShrineStage({
       {naivedyaOn ? (
         <Animated.View
           entering={reduceMotion ? undefined : FadeInDown.duration(340)}
-          style={styles.naivedya}
+          style={[styles.naivedya, hasImage && styles.naivedyaRaised]}
           pointerEvents="none"
         >
           <Text style={styles.naivedyaText}>🍯  🥥  🍬  🌿</Text>
         </Animated.View>
+      ) : null}
+
+      {hasImage ? (
+        <View style={styles.caption} pointerEvents="none">
+          <Text style={styles.captionName}>{temple.deity}</Text>
+          <Text style={styles.captionMantra}>{temple.mantra}</Text>
+        </View>
       ) : null}
     </View>
   );
@@ -158,16 +185,33 @@ const styles = StyleSheet.create({
     borderRadius: 110,
     backgroundColor: '#ffcf8a',
   },
-  shrine: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
-  deityWrap: { width: '100%', flex: 1, alignItems: 'center', justifyContent: 'center' },
-  deityHalo: {
+  edgeVignette: {
     position: 'absolute',
-    width: '82%',
-    aspectRatio: 1,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,224,170,0.16)',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 28,
+    borderWidth: 28,
+    borderColor: 'rgba(0,0,0,0.22)',
   },
-  deity: { width: '88%', height: '86%' },
+  caption: { position: 'absolute', bottom: 16, left: 18, right: 18, alignItems: 'center' },
+  captionName: {
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    color: '#fff6e7',
+    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowRadius: 8,
+  },
+  captionMantra: {
+    marginTop: 4,
+    fontSize: 13,
+    color: '#ffd98a',
+    textShadowColor: 'rgba(0,0,0,0.85)',
+    textShadowRadius: 8,
+  },
+  shrine: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 20 },
   om: {
     width: 128,
     height: 128,
@@ -214,5 +258,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,236,200,0.35)',
   },
+  naivedyaRaised: { bottom: 58 },
   naivedyaText: { fontSize: 17, letterSpacing: 2 },
 });
