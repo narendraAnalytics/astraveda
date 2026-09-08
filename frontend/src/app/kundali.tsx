@@ -1,6 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
@@ -91,6 +93,25 @@ export default function KundaliScreen() {
 
   const searchSeq = useRef(0);
   const loadedFor = useRef<string | null>(null);
+  const formScrollRef = useRef<ScrollView>(null);
+  const placeFocused = useRef(false);
+  const scrollPlaceIntoView = useCallback(() => {
+    setTimeout(() => formScrollRef.current?.scrollToEnd({ animated: true }), 120);
+  }, []);
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s = Keyboard.addListener(showEvt, (e) => {
+      setKbHeight(e.endCoordinates?.height ?? 0);
+      if (placeFocused.current) scrollPlaceIntoView();
+    });
+    const h = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    return () => {
+      s.remove();
+      h.remove();
+    };
+  }, [scrollPlaceIntoView]);
 
   // Clerk's useUser/useAuth hand back a fresh `getToken`/`user` identity on every
   // render — keep them in refs so effects don't re-fire (and loop) on identity change.
@@ -198,6 +219,7 @@ export default function KundaliScreen() {
         if (seq === searchSeq.current) {
           setPlaceResults(rows);
           if (rows.length === 0) setPlaceError('No matching city found. Try a nearby larger city.');
+          else if (placeFocused.current) scrollPlaceIntoView();
         }
       } catch (e) {
         if (seq === searchSeq.current) {
@@ -385,9 +407,18 @@ export default function KundaliScreen() {
           bottomInset={insets.bottom + 24}
         />
       ) : (
+        <KeyboardAvoidingView
+          style={styles.screen}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <ScrollView
+          ref={formScrollRef}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 48 }}
+          keyboardDismissMode="interactive"
+          contentContainerStyle={{
+            padding: 18,
+            paddingBottom: insets.bottom + 48 + (Platform.OS === 'android' ? kbHeight : 0),
+          }}
         >
           <Animated.View entering={FadeInDown.duration(400)} style={styles.card}>
             {resumable ? (
@@ -473,6 +504,13 @@ export default function KundaliScreen() {
                   placeholder="Search city…"
                   placeholderTextColor="#b6a094"
                   autoCorrect={false}
+                  onFocus={() => {
+                    placeFocused.current = true;
+                    scrollPlaceIntoView();
+                  }}
+                  onBlur={() => {
+                    placeFocused.current = false;
+                  }}
                 />
                 {searching ? <ActivityIndicator size="small" color="#9a671a" /> : place ? (
                   <Feather name="check-circle" size={18} color="#4faa6a" />
@@ -535,6 +573,7 @@ export default function KundaliScreen() {
             ) : null}
           </Animated.View>
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
 
       {showDatePicker ? (
@@ -798,17 +837,22 @@ const styles = StyleSheet.create({
     borderColor: '#eeddc8',
     backgroundColor: '#fff',
     overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#4a2f20',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
   suggestion: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    paddingVertical: 11,
+    paddingVertical: 13,
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#eeddc8',
   },
-  suggestionText: { fontSize: 13, color: '#4a2f20', flex: 1 },
+  suggestionText: { fontSize: 14, color: '#4a2f20', flex: 1 },
   tzHint: { fontSize: 11, color: '#9b7663', marginTop: 6 },
 
   error: { fontSize: 13, color: '#c0392b', marginBottom: 12 },
