@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | (later: wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | (later: wallet_topup …)
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -238,6 +238,37 @@ class AuraReading(SQLModel, table=True):
     source: str = Field(default="scan")
 
     reading_en: str | None = None
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class VastuReading(SQLModel, table=True):
+    """One Vastu Shastra analysis of a room from a photo + facing direction.
+
+    Gemini reads the room photo against Vastu principles for the room type and
+    direction, returning a score, elemental balance, doshas and non-demolition
+    remedies (upay). The photo is never stored server-side. Every analysis is a
+    paid ₹150 Razorpay order (server-authoritative).
+    """
+
+    __tablename__ = "vastu_readings"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    label: str  # user's name for the space, e.g. "Our kitchen"
+    room_type: str  # Entrance | Living | Kitchen | Bedroom | Pooja | Bathroom | Study | Other
+    direction: str  # N | NE | E | SE | S | SW | W | NW | Unknown
+
+    score: int = 0
+    verdict: str = ""
+    elements: list = Field(default_factory=list, sa_type=JSON)  # [{element, state, note}]
+    doshas: list = Field(default_factory=list, sa_type=JSON)  # [{issue, severity}]
+    remedies: list = Field(default_factory=list, sa_type=JSON)  # [{remedy, fixes, ease}]
+    summary: str = ""
+    guidance: str = ""
 
     payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 

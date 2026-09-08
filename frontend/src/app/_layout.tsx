@@ -31,6 +31,8 @@ function AppShell() {
       <Stack.Screen name="aura" />
       <Stack.Screen name="dream" />
       <Stack.Screen name="dreams" />
+      <Stack.Screen name="vastu" />
+      <Stack.Screen name="spaces" />
       <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
     </Stack>
   );

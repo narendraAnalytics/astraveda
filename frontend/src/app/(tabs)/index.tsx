@@ -376,6 +376,10 @@ export default function HomeScreen() {
       router.push(isSignedIn ? '/dreams' : '/(tabs)/profile');
       return;
     }
+    if (tool.key === 'vastu') {
+      router.push(isSignedIn ? '/spaces' : '/(tabs)/profile');
+      return;
+    }
     Alert.alert(t(tool.titleKey), `${t(tool.subtitleKey)}.`, [
       { text: t('common.keepExploring'), style: 'cancel' },
       { text: t('tools.startReading'), onPress: () => Alert.alert('Coming into focus', 'Your personal reading flow is being prepared.') },

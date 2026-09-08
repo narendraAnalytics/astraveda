@@ -56,6 +56,8 @@ class Settings(BaseSettings):
     aura_price_paise: int = 6000
     # Price of one Dream Interpretation, in paise. ₹30 = 3000. Server-set, never from client.
     dream_price_paise: int = 3000
+    # Price of one Vastu analysis, in paise. ₹150 = 15000. Server-set, never from client.
+    vastu_price_paise: int = 15000
 
     @property
     def sqlalchemy_url(self) -> str:
