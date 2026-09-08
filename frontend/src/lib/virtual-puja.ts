@@ -3,22 +3,23 @@
 // v1 ships with gradient/Om shrine placeholders. Swap `image` on a temple once
 // real deity art exists.
 //
-// AUDIO: the five files in `frontend/assets/audio/` are SILENT placeholders so
-// the app bundles and the wiring is proven. To make the puja audible, just
-// overwrite them in place with real clips (same filenames, MP3) — no code
-// change. See the table below for what each one is. Good license-free sources:
-// pixabay.com/sound-effects, mixkit.co, or Freesound (CC0 filter).
+// AUDIO: the files in `frontend/assets/audio/` are SYNTHESIZED placeholder tones
+// (a real bell strike, drone, etc. — audible, but obviously not a recording).
+// To ship production sound, replace them with real royalty-free clips. Keep the
+// filenames; if you switch format to .mp3, update the extensions in the two
+// require() maps below. Good license-free sources: pixabay.com/sound-effects,
+// mixkit.co, or Freesound (CC0 filter).
 //
-//   bell.mp3    temple bell / ghanti      loop     3–6 s, seamless
-//   aarti.mp3   aarti bells + thali       loop     10–20 s
-//   conch.mp3   single shankh blow        one-shot 2–4 s
-//   chime.mp3   soft offering "ding"      one-shot 1–2 s
-//   mantra.mp3  low Om / chant drone      loop     20–40 s (optional)
+//   bell.wav    temple bell / ghanti      loop     3–6 s, seamless
+//   aarti.wav   aarti bells + thali       loop     10–20 s
+//   conch.wav   single shankh blow        one-shot 2–4 s
+//   chime.wav   soft offering "ding"      one-shot 1–2 s
+//   mantra.wav  low Om / chant drone      loop     20–40 s (optional)
 //
-// AMBIENCE: `frontend/assets/audio/ambient/{shiva,vishnu,ganesha,devi,krishna}.mp3`
+// AMBIENCE: `frontend/assets/audio/ambient/{shiva,vishnu,ganesha,devi,krishna}.wav`
 // is the devotional background track per temple (Shiva bhajan under the Somnath
-// shrine, etc.). Same deal — silent placeholders, overwrite in place. These play
-// low under the effects and duck further while aarti runs.
+// shrine, etc.). Same deal — synthesized placeholders, overwrite in place. These
+// play low under the effects and duck further while aarti runs.
 //   ⚠ This is a paid product: the real tracks MUST be royalty-free / CC0 /
 //   commercially licensed. Traditional bhajans are public-domain compositions
 //   but specific *recordings* are copyrighted. Safe: instrumental temple
@@ -102,11 +103,11 @@ export type PujaSoundKey = 'bell' | 'aarti' | 'conch' | 'chime' | 'mantra';
  * the files in `assets/audio/` to make them real.
  */
 export const PUJA_SOUNDS: Record<PujaSoundKey, number> = {
-  bell: require('../../assets/audio/bell.mp3'),
-  aarti: require('../../assets/audio/aarti.mp3'),
-  conch: require('../../assets/audio/conch.mp3'),
-  chime: require('../../assets/audio/chime.mp3'),
-  mantra: require('../../assets/audio/mantra.mp3'),
+  bell: require('../../assets/audio/bell.wav'),
+  aarti: require('../../assets/audio/aarti.wav'),
+  conch: require('../../assets/audio/conch.wav'),
+  chime: require('../../assets/audio/chime.wav'),
+  mantra: require('../../assets/audio/mantra.wav'),
 };
 
 /**
@@ -114,11 +115,11 @@ export const PUJA_SOUNDS: Record<PujaSoundKey, number> = {
  * by the audio hook. Silent placeholders — overwrite in `assets/audio/ambient/`.
  */
 export const PUJA_AMBIENCE: Record<PujaTradition, number> = {
-  shiva: require('../../assets/audio/ambient/shiva.mp3'),
-  vishnu: require('../../assets/audio/ambient/vishnu.mp3'),
-  ganesha: require('../../assets/audio/ambient/ganesha.mp3'),
-  devi: require('../../assets/audio/ambient/devi.mp3'),
-  krishna: require('../../assets/audio/ambient/krishna.mp3'),
+  shiva: require('../../assets/audio/ambient/shiva.wav'),
+  vishnu: require('../../assets/audio/ambient/vishnu.wav'),
+  ganesha: require('../../assets/audio/ambient/ganesha.wav'),
+  devi: require('../../assets/audio/ambient/devi.wav'),
+  krishna: require('../../assets/audio/ambient/krishna.wav'),
 };
 
 export const VIRTUAL_TEMPLE_STORAGE_KEY = 'astraveda.virtualTemple';

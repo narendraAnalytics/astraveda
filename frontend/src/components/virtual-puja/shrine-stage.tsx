@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
   FadeInDown,
-  FadeOut,
   cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
@@ -122,7 +121,7 @@ function Ripple() {
     opacity: (1 - p.value) * 0.5,
     transform: [{ scale: 0.3 + p.value * 2.4 }],
   }));
-  return <Animated.View exiting={FadeOut} style={[styles.ripple, style]} pointerEvents="none" />;
+  return <Animated.View style={[styles.ripple, style]} pointerEvents="none" />;
 }
 
 const styles = StyleSheet.create({

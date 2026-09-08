@@ -56,11 +56,11 @@ export function usePujaAudio(muted: boolean) {
         fn();
       } catch {}
     };
-    const restart = (p: typeof bell) =>
-      safe(() => {
-        p.seekTo(0);
-        p.play();
-      });
+    const restart = (p: typeof bell) => {
+      // Separate calls: a rejected seek (player still loading) must not block play.
+      safe(() => p.seekTo(0));
+      safe(() => p.play());
+    };
     return {
       startBell: () => restart(bell),
       stopBell: () => safe(() => bell.pause()),
