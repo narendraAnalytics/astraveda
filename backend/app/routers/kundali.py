@@ -20,7 +20,7 @@ from app.auth import get_current_user
 from app.config import get_settings
 from app.db import get_session
 from app.models import Kundali, Payment, User
-from app.services import geocode, kundali as kundali_engine, payments, reading
+from app.services import geocode, kundali as kundali_engine, payments, reading, wallet_pay
 
 router = APIRouter(prefix="/kundali", tags=["kundali"])
 
@@ -58,6 +58,7 @@ class GenerateIn(BaseModel):
     payment_id: str | None = None
     razorpay_payment_id: str | None = None
     razorpay_signature: str | None = None
+    method: str = "card"  # card | wallet
 
     def birth_fields(self) -> dict:
         return self.model_dump(
@@ -71,9 +72,10 @@ class GenerateIn(BaseModel):
 
 class CheckoutOut(BaseModel):
     payment_id: str
-    order_id: str
-    key_id: str
+    order_id: str = ""
+    key_id: str = ""
     amount_paise: int
+    method: str = "card"
     currency: str = "INR"
 
 
@@ -196,15 +198,10 @@ async def kundali_checkout(
     """Create a ₹15 Razorpay order for one Kundali. Every generation is paid —
     there is no per-person de-dupe."""
     settings = get_settings()
-    if not payments.is_configured():
-        raise HTTPException(status_code=503, detail="Payments are not configured")
-
     snapshot = body.birth_fields()
+    amount_paise = settings.kundali_price_paise
 
-    # Reuse an unconsumed order for the identical birth snapshot (double-tap /
-    # returned to the form before paying) instead of opening a second order.
-    # This is NOT per-person de-dupe: a consumed order never matches, so a repeat
-    # chart of the same person still costs ₹15.
+    # Reuse an unconsumed order for the identical birth snapshot (double-tap).
     pending = session.exec(
         select(Payment).where(
             Payment.user_id == user.id,
@@ -215,41 +212,26 @@ async def kundali_checkout(
     ).all()
     reuse = next((p for p in pending if p.birth_snapshot == snapshot), None)
     if reuse is not None:
+        m = "wallet" if reuse.razorpay_order_id.startswith("wallet_") else "card"
         return CheckoutOut(
             payment_id=str(reuse.id),
-            order_id=reuse.razorpay_order_id,
-            key_id=settings.razorpay_key_id,
+            order_id="" if m == "wallet" else reuse.razorpay_order_id,
+            key_id="" if m == "wallet" else settings.razorpay_key_id,
             amount_paise=reuse.amount_paise,
+            method=m,
         )
 
-    payment_id = uuid4()
-    amount_paise = settings.kundali_price_paise
-    try:
-        order = await anyio.to_thread.run_sync(
-            lambda: payments.create_order(
-                amount_paise=amount_paise,
-                receipt=str(payment_id),
-                notes={"user_id": str(user.id), "purpose": "kundali", "name": body.name.strip()},
-            )
-        )
-    except payments.PaymentError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    pay = Payment(
-        id=payment_id,
-        user_id=user.id,
-        purpose="kundali",
-        amount_paise=amount_paise,
-        razorpay_order_id=order["id"],
-        birth_snapshot=snapshot,
+    start = await wallet_pay.start_payment(
+        session, user,
+        method=body.method, purpose="kundali", amount_paise=amount_paise,
+        snapshot=snapshot, description=f"Kundali · {body.name.strip()}",
     )
-    session.add(pay)
-    session.commit()
     return CheckoutOut(
-        payment_id=str(payment_id),
-        order_id=order["id"],
-        key_id=settings.razorpay_key_id,
+        payment_id=str(start.payment.id),
+        order_id=start.order_id,
+        key_id=start.key_id,
         amount_paise=amount_paise,
+        method=start.method,
     )
 
 

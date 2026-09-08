@@ -28,7 +28,7 @@ from app.auth import get_current_user
 from app.config import get_settings
 from app.db import get_session
 from app.models import FaceReading, Payment, User
-from app.services import face_reading, face_vision, payments
+from app.services import face_reading, face_vision, payments, wallet_pay
 
 router = APIRouter(prefix="/face", tags=["face"])
 
@@ -75,7 +75,7 @@ class PersonIn(BaseModel):
 
 
 class CheckoutIn(PersonIn):
-    pass
+    method: str = "card"  # card | wallet
 
 
 class ScanIn(PersonIn):
@@ -99,9 +99,10 @@ class GenerateIn(PersonIn):
 
 class CheckoutOut(BaseModel):
     payment_id: str
-    order_id: str
-    key_id: str
+    order_id: str = ""
+    key_id: str = ""
     amount_paise: int
+    method: str = "card"
     currency: str = "INR"
 
 
@@ -320,14 +321,11 @@ async def face_checkout(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> CheckoutOut:
-    """Create a ₹45 Razorpay order for one face reading. Every reading is paid."""
+    """₹45 per face reading — pay by card (Razorpay) or from the wallet."""
     settings = get_settings()
-    if not payments.is_configured():
-        raise HTTPException(status_code=503, detail="Payments are not configured")
-
     snapshot = body.person_snapshot()
+    amount_paise = settings.face_price_paise
 
-    # Double-tap guard: reuse an unconsumed order with the identical snapshot.
     pending = session.exec(
         select(Payment).where(
             Payment.user_id == user.id,
@@ -338,41 +336,26 @@ async def face_checkout(
     ).all()
     reuse = next((p for p in pending if p.birth_snapshot == snapshot), None)
     if reuse is not None:
+        m = "wallet" if reuse.razorpay_order_id.startswith("wallet_") else "card"
         return CheckoutOut(
             payment_id=str(reuse.id),
-            order_id=reuse.razorpay_order_id,
-            key_id=settings.razorpay_key_id,
+            order_id="" if m == "wallet" else reuse.razorpay_order_id,
+            key_id="" if m == "wallet" else settings.razorpay_key_id,
             amount_paise=reuse.amount_paise,
+            method=m,
         )
 
-    payment_id = uuid4()
-    amount_paise = settings.face_price_paise
-    try:
-        order = await anyio.to_thread.run_sync(
-            lambda: payments.create_order(
-                amount_paise=amount_paise,
-                receipt=str(payment_id),
-                notes={"user_id": str(user.id), "purpose": "face", "name": snapshot["name"]},
-            )
-        )
-    except payments.PaymentError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    pay = Payment(
-        id=payment_id,
-        user_id=user.id,
-        purpose="face",
-        amount_paise=amount_paise,
-        razorpay_order_id=order["id"],
-        birth_snapshot=snapshot,
+    start = await wallet_pay.start_payment(
+        session, user,
+        method=body.method, purpose="face", amount_paise=amount_paise,
+        snapshot=snapshot, description=f"Face reading · {snapshot['name']}",
     )
-    session.add(pay)
-    session.commit()
     return CheckoutOut(
-        payment_id=str(payment_id),
-        order_id=order["id"],
-        key_id=settings.razorpay_key_id,
+        payment_id=str(start.payment.id),
+        order_id=start.order_id,
+        key_id=start.key_id,
         amount_paise=amount_paise,
+        method=start.method,
     )
 
 

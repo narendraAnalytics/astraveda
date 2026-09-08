@@ -23,7 +23,7 @@ from app.auth import get_current_user
 from app.config import get_settings
 from app.db import get_session
 from app.models import Payment, Puja, PujaOrder, Temple, User
-from app.services import payments
+from app.services import payments, wallet_pay
 
 router = APIRouter(tags=["puja"])
 
@@ -73,14 +73,16 @@ class CheckoutIn(BaseModel):
     phone: str | None = Field(default=None, max_length=20)
     num_devotees: int = Field(default=1, ge=1, le=20)
     preferred_date: date
+    method: str = "card"  # card | wallet
 
 
 class CheckoutOut(BaseModel):
     payment_id: str
     puja_order_id: str
-    order_id: str
-    key_id: str
+    order_id: str = ""
+    key_id: str = ""
     amount_paise: int
+    method: str = "card"
     currency: str = "INR"
 
 
@@ -242,8 +244,6 @@ async def puja_checkout(
     session: Session = Depends(get_session),
 ) -> CheckoutOut:
     settings = get_settings()
-    if not payments.is_configured():
-        raise HTTPException(status_code=503, detail="Payments are not configured")
 
     try:
         pid = UUID(body.puja_id)
@@ -281,32 +281,12 @@ async def puja_checkout(
         "amount_paise": amount_paise,
     }
 
-    payment_id = uuid4()
-    try:
-        order = await anyio.to_thread.run_sync(
-            lambda: payments.create_order(
-                amount_paise=amount_paise,
-                receipt=str(payment_id),
-                notes={
-                    "user_id": str(user.id),
-                    "purpose": "puja",
-                    "puja": puja.name,
-                    "temple": temple.name,
-                },
-            )
-        )
-    except payments.PaymentError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    pay = Payment(
-        id=payment_id,
-        user_id=user.id,
-        purpose="puja",
-        amount_paise=amount_paise,
-        razorpay_order_id=order["id"],
-        birth_snapshot=snapshot,
+    start = await wallet_pay.start_payment(
+        session, user,
+        method=body.method, purpose="puja", amount_paise=amount_paise,
+        snapshot=snapshot, description=f"{puja.name} · {temple.name}",
     )
-    session.add(pay)
+    payment_id = start.payment.id
 
     puja_order = PujaOrder(
         user_id=user.id,
@@ -328,9 +308,10 @@ async def puja_checkout(
     return CheckoutOut(
         payment_id=str(payment_id),
         puja_order_id=str(puja_order.id),
-        order_id=order["id"],
-        key_id=settings.razorpay_key_id,
+        order_id=start.order_id,
+        key_id=start.key_id,
         amount_paise=amount_paise,
+        method=start.method,
     )
 
 

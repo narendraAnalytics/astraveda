@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     dream_price_paise: int = 3000
     # Price of one Vastu analysis, in paise. ₹150 = 15000. Server-set, never from client.
     vastu_price_paise: int = 15000
+    # Minimum wallet top-up, in paise. ₹100 = 10000.
+    wallet_min_topup_paise: int = 10000
+    wallet_max_topup_paise: int = 5000000  # ₹50,000
 
     @property
     def sqlalchemy_url(self) -> str:

@@ -23,7 +23,7 @@ from app.auth import get_current_user
 from app.config import get_settings
 from app.db import get_session
 from app.models import DreamReading, Payment, User
-from app.services import dream_reading, payments
+from app.services import dream_reading, payments, wallet_pay
 
 router = APIRouter(prefix="/dream", tags=["dream"])
 
@@ -69,6 +69,10 @@ class DreamIn(BaseModel):
         }
 
 
+class CheckoutIn(DreamIn):
+    method: str = "card"  # card | wallet
+
+
 class InterpretIn(DreamIn):
     payment_id: str | None = None
     razorpay_payment_id: str | None = None
@@ -77,9 +81,10 @@ class InterpretIn(DreamIn):
 
 class CheckoutOut(BaseModel):
     payment_id: str
-    order_id: str
-    key_id: str
+    order_id: str = ""
+    key_id: str = ""
     amount_paise: int
+    method: str = "card"
     currency: str = "INR"
 
 
@@ -210,14 +215,11 @@ async def _resolve_payment(
 
 @router.post("/checkout", response_model=CheckoutOut)
 async def dream_checkout(
-    body: DreamIn,
+    body: CheckoutIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> CheckoutOut:
     settings = get_settings()
-    if not payments.is_configured():
-        raise HTTPException(status_code=503, detail="Payments are not configured")
-
     snapshot = body.checkout_snapshot()
     snap_key = hashlib.sha1(json.dumps(snapshot, sort_keys=True).encode()).hexdigest()
 
@@ -238,41 +240,27 @@ async def dream_checkout(
         None,
     )
     if reuse is not None:
+        m = "wallet" if reuse.razorpay_order_id.startswith("wallet_") else "card"
         return CheckoutOut(
             payment_id=str(reuse.id),
-            order_id=reuse.razorpay_order_id,
-            key_id=settings.razorpay_key_id,
+            order_id="" if m == "wallet" else reuse.razorpay_order_id,
+            key_id="" if m == "wallet" else settings.razorpay_key_id,
             amount_paise=reuse.amount_paise,
+            method=m,
         )
 
-    payment_id = uuid4()
     amount_paise = settings.dream_price_paise
-    try:
-        order = await anyio.to_thread.run_sync(
-            lambda: payments.create_order(
-                amount_paise=amount_paise,
-                receipt=str(payment_id),
-                notes={"user_id": str(user.id), "purpose": "dream", "name": snapshot["name"]},
-            )
-        )
-    except payments.PaymentError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    pay = Payment(
-        id=payment_id,
-        user_id=user.id,
-        purpose="dream",
-        amount_paise=amount_paise,
-        razorpay_order_id=order["id"],
-        birth_snapshot=snapshot,
+    start = await wallet_pay.start_payment(
+        session, user,
+        method=body.method, purpose="dream", amount_paise=amount_paise,
+        snapshot=snapshot, description=f"Dream reading · {snapshot['name']}",
     )
-    session.add(pay)
-    session.commit()
     return CheckoutOut(
-        payment_id=str(payment_id),
-        order_id=order["id"],
-        key_id=settings.razorpay_key_id,
+        payment_id=str(start.payment.id),
+        order_id=start.order_id,
+        key_id=start.key_id,
         amount_paise=amount_paise,
+        method=start.method,
     )
 
 

@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | puja | (later: wallet_topup …)
+    purpose: str = Field(default="kundali")  # kundali | face | aura | dream | vastu | puja | wallet_topup
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -306,6 +306,39 @@ class DreamReading(SQLModel, table=True):
 
     payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------------------------------------------------------------------------
+# Money wallet (finalview.txt §12 — separate from AI credits)
+# ---------------------------------------------------------------------------
+
+class Wallet(SQLModel, table=True):
+    """The user's money balance, in paise. All changes go through
+    services.wallet and are mirrored to WalletTransaction (a ledger)."""
+
+    __tablename__ = "wallets"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, unique=True, foreign_key="users.id")
+    balance_paise: int = Field(default=0)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class WalletTransaction(SQLModel, table=True):
+    """Immutable ledger entry. `amount_paise` is signed (+ credit, - debit).
+    `balance_after` is the wallet balance right after this entry."""
+
+    __tablename__ = "wallet_transactions"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+    amount_paise: int  # signed
+    kind: str  # topup | bonus | debit | refund
+    balance_after: int
+    description: str = ""
+    reference_type: str | None = None  # "kundali" | "face" | ... | "wallet_topup"
+    reference_id: str | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
