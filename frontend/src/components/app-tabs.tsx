@@ -1,4 +1,5 @@
-import { Tabs, usePathname } from 'expo-router';
+import { Tabs, usePathname, useRouter, type Href } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
@@ -90,9 +91,15 @@ const ICONS: Record<string, { on: keyof typeof Ionicons.glyphMap; off: keyof typ
   Profile: { on: 'person', off: 'person-outline' },
 };
 
-function CenterTabButton({ onPress }: TabButtonProps) {
+// The flower opens the "Our Astrologers" screen (a root Stack route), not a tab.
+function CenterTabButton(_props: TabButtonProps) {
+  const router = useRouter();
+  const open = async () => {
+    await Haptics.selectionAsync();
+    router.push('/astrologers' as Href);
+  };
   return (
-    <Pressable onPress={onPress} style={styles.centerTab}>
+    <Pressable onPress={open} style={styles.centerTab} accessibilityRole="button" accessibilityLabel="Our Astrologers">
       <View style={styles.centerIcon}>
         <Image source={{ uri: FLOWER_URL }} style={styles.centerImage} contentFit="cover" />
       </View>

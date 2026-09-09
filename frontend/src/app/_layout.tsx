@@ -25,6 +25,8 @@ function AppShell() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="astrologers" />
+      <Stack.Screen name="astrologer" />
       <Stack.Screen name="consult" />
       <Stack.Screen name="kundali" />
       <Stack.Screen name="horoscope" />
