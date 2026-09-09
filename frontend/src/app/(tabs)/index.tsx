@@ -21,6 +21,7 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
@@ -47,6 +48,7 @@ const LOGO_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600768/
 const BANNER_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788600814/bannerimage_hgtcjz.png';
 const KRISHNA_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788673168/loardkrishna_bxkvt7.png';
 const VYASA_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788674602/vedavyasa_oxcjft.png';
+const FAMILY_URL = 'https://res.cloudinary.com/dkqbzwicr/image/upload/v1788800643/familyastrologer_wncrot.png';
 
 // Hero slideshow: cross-fade + slow Ken Burns zoom between deities, each with its
 // own devotional copy. Auto-advances; freezes on slide 0 when Reduce Motion is on.
@@ -81,6 +83,13 @@ const heroSlides: HeroSlide[] = [
     blessing: 'ज्ञान और शांति सदा तुम्हारे साथ रहे',
     bottomCaption: true,
   },
+  {
+    image: FAMILY_URL,
+    script: 'Guidance for you\nand your whole family',
+    sanskrit: '',
+    blessing: 'Wisdom passed down, blessings shared',
+    bottomCaption: true,
+  },
 ];
 
 const HERO_INTERVAL = 5200;
@@ -100,6 +109,13 @@ const AURA_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v17
 // Plain transparent art (trimmed) so it sits on the card like Aura Scan / Vastu do.
 const DREAM_URL =
   'https://res.cloudinary.com/dkqbzwicr/image/upload/e_trim:20,w_180,c_fit/v1788628611/dreamintrupter_tmbxvi.png';
+
+// "Today's Cosmic Guidance" insight-card illustrations (imagesurl.txt). Small
+// pastel tiles that sit on the card in place of the Feather icon.
+const LUCKY_COLOR_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788800642/luckycolor_eedxdg.png');
+const RAHU_KALAM_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788800642/rahukalam_pzwoll.png');
+const BEST_TIME_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788800815/besttime_bxw2gg.png');
+const TODAYS_MANTRA_URL = cdnThumb('https://res.cloudinary.com/dkqbzwicr/image/upload/v1788800642/todaysmantra_dqvvga.png');
 
 // Subtle, always-on ambient motion for each tool's artwork chip. All transforms
 // run on the UI thread via Reanimated — no JS bridge cost, no layout shift (the
@@ -193,6 +209,127 @@ function AnimatedToolImage({ uri, motion }: { uri: string; motion: Motion }) {
   });
 
   return <AnimatedImage source={{ uri }} style={[styles.toolImage, animatedStyle]} contentFit="contain" />;
+}
+
+/** Daily Horoscope card icon — a slow twinkling, softly rotating star with a breathing glow. */
+function TwinkleStar() {
+  const reduceMotion = useReduceMotion();
+  const twinkle = useSharedValue(0);
+  const spin = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(twinkle);
+      cancelAnimation(spin);
+      twinkle.value = 0;
+      spin.value = 0;
+      return;
+    }
+    twinkle.value = withRepeat(withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.ease) }), -1, true);
+    spin.value = withRepeat(withTiming(1, { duration: 9000, easing: Easing.linear }), -1, false);
+    return () => {
+      cancelAnimation(twinkle);
+      cancelAnimation(spin);
+    };
+  }, [reduceMotion, twinkle, spin]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(twinkle.value, [0, 1], [0.15, 0.5]),
+    transform: [{ scale: interpolate(twinkle.value, [0, 1], [0.8, 1.3]) }],
+  }));
+  const glyphStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(twinkle.value, [0, 1], [0.65, 1]),
+    transform: [
+      { scale: interpolate(twinkle.value, [0, 1], [0.9, 1.12]) },
+      { rotateZ: `${spin.value * 360}deg` },
+    ],
+  }));
+
+  return (
+    <View style={styles.horoscopeStar}>
+      <Animated.View style={[styles.horoscopeStarGlow, glowStyle]} />
+      <Animated.Text style={[styles.horoscopeStarGlyph, glyphStyle]}>✦</Animated.Text>
+    </View>
+  );
+}
+
+function WaveBar({ base, delay, duration }: { base: number; delay: number; duration: number }) {
+  const reduceMotion = useReduceMotion();
+  const v = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(v);
+      v.value = 0;
+      return;
+    }
+    v.value = withDelay(delay, withRepeat(withTiming(1, { duration, easing: Easing.inOut(Easing.ease) }), -1, true));
+    return () => cancelAnimation(v);
+  }, [reduceMotion, v, delay, duration]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scaleY: interpolate(v.value, [0, 1], [0.45, 1.35]) }],
+  }));
+
+  return <Animated.View style={[styles.waveLine, { height: base }, style]} />;
+}
+
+/** Ask AstraVeda — a live equalizer that signals "tap to speak". */
+function VoiceWave() {
+  const bars = [
+    { base: 12, delay: 0, duration: 520 },
+    { base: 24, delay: 120, duration: 430 },
+    { base: 15, delay: 240, duration: 600 },
+    { base: 30, delay: 80, duration: 470 },
+    { base: 17, delay: 180, duration: 560 },
+  ];
+  return (
+    <View style={styles.waveIcon}>
+      {bars.map((b, i) => (
+        <WaveBar key={i} base={b.base} delay={b.delay} duration={b.duration} />
+      ))}
+    </View>
+  );
+}
+
+/** Ask AstraVeda — mic circle with a gentle breathing pulse and a soft sonar ring. */
+function AskMic() {
+  const reduceMotion = useReduceMotion();
+  const breathe = useSharedValue(0);
+  const ring = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      cancelAnimation(breathe);
+      cancelAnimation(ring);
+      breathe.value = 0;
+      ring.value = 0;
+      return;
+    }
+    breathe.value = withRepeat(withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) }), -1, true);
+    ring.value = withRepeat(withTiming(1, { duration: 2100, easing: Easing.out(Easing.ease) }), -1, false);
+    return () => {
+      cancelAnimation(breathe);
+      cancelAnimation(ring);
+    };
+  }, [reduceMotion, breathe, ring]);
+
+  const circleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: interpolate(breathe.value, [0, 1], [1, 1.06]) }],
+  }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(ring.value, [0, 0.15, 1], [0, 0.55, 0]),
+    transform: [{ scale: interpolate(ring.value, [0, 1], [1, 1.85]) }],
+  }));
+
+  return (
+    <View style={styles.askMicWrap}>
+      <Animated.View style={[styles.askMicRing, ringStyle]} pointerEvents="none" />
+      <Animated.View style={[styles.askMic, circleStyle]}>
+        <Feather name="mic" size={24} color="#fff" />
+      </Animated.View>
+    </View>
+  );
 }
 
 function HeroSlideImage({ uri, animate }: { uri: string; animate: boolean }) {
@@ -322,6 +459,7 @@ type Insight = {
   labelKey: 'insights.luckyColor' | 'insights.rahuKalam' | 'insights.bestTime' | 'insights.todaysMantra';
   value: string;
   icon: string;
+  image?: string;
   tint: string;
   bg: string;
   singleLine?: boolean;
@@ -333,6 +471,7 @@ function buildInsights(g: CosmicGuidance): Insight[] {
       labelKey: 'insights.luckyColor',
       value: g.lucky_color.name,
       icon: 'droplet',
+      image: LUCKY_COLOR_URL,
       tint: g.lucky_color.tint,
       bg: g.lucky_color.bg,
     },
@@ -340,6 +479,7 @@ function buildInsights(g: CosmicGuidance): Insight[] {
       labelKey: 'insights.rahuKalam',
       value: `${g.rahu_kalam.start} – ${g.rahu_kalam.end}`,
       icon: 'clock',
+      image: RAHU_KALAM_URL,
       tint: '#4d8de8',
       bg: '#eaf2ff',
       singleLine: true,
@@ -348,6 +488,7 @@ function buildInsights(g: CosmicGuidance): Insight[] {
       labelKey: 'insights.bestTime',
       value: `${g.best_time.start} – ${g.best_time.end}`,
       icon: 'sun',
+      image: BEST_TIME_URL,
       tint: '#39a56a',
       bg: '#eaf8ec',
       singleLine: true,
@@ -356,6 +497,7 @@ function buildInsights(g: CosmicGuidance): Insight[] {
       labelKey: 'insights.todaysMantra',
       value: `"${g.mantra.text}"`,
       icon: 'om',
+      image: TODAYS_MANTRA_URL,
       tint: '#8758ce',
       bg: '#f1eaff',
     },
@@ -510,13 +652,23 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.insightCard, { backgroundColor: insight.bg }, pressed && styles.pressedCard]}
               onPress={() => Alert.alert(t(insight.labelKey), insight.value.replace('\n', ' '))}
             >
-              <View style={[styles.insightIcon, { backgroundColor: `${insight.tint}18` }]}>
-                {insight.icon === 'om' ? (
-                  <Text style={[styles.om, { color: insight.tint }]}>ॐ</Text>
-                ) : (
-                  <Feather name={insight.icon as keyof typeof Feather.glyphMap} size={22} color={insight.tint} />
-                )}
-              </View>
+              {insight.image ? (
+                <>
+                  <Image source={{ uri: insight.image }} style={styles.insightBgImage} contentFit="cover" />
+                  <LinearGradient
+                    colors={[`${insight.bg}66`, `${insight.bg}f2`]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                </>
+              ) : (
+                <View style={[styles.insightIcon, { backgroundColor: `${insight.tint}18` }]}>
+                  {insight.icon === 'om' ? (
+                    <Text style={[styles.om, { color: insight.tint }]}>ॐ</Text>
+                  ) : (
+                    <Feather name={insight.icon as keyof typeof Feather.glyphMap} size={22} color={insight.tint} />
+                  )}
+                </View>
+              )}
               <Text style={styles.insightLabel}>{t(insight.labelKey)}</Text>
               <Text
                 style={styles.insightValue}
@@ -540,9 +692,7 @@ export default function HomeScreen() {
           accessibilityLabel={t('home.horoscopeTitle')}
         >
           <LinearGradient colors={['#241a54', '#3a2a7a', '#5b3aa6']} style={StyleSheet.absoluteFill} />
-          <View style={styles.horoscopeStar}>
-            <Text style={styles.horoscopeStarGlyph}>✦</Text>
-          </View>
+          <TwinkleStar />
           <View style={styles.horoscopeCopy}>
             <Text style={styles.horoscopeTitle}>{t('home.horoscopeTitle')}</Text>
             <Text style={styles.horoscopeSub}>{t('home.horoscopeSub')}</Text>
@@ -554,14 +704,8 @@ export default function HomeScreen() {
           style={({ pressed }) => [styles.askButton, pressed && styles.askButtonPressed]}
           onPress={askAstraVeda}
         >
-          <View style={styles.waveIcon}>
-            <View style={[styles.waveLine, { height: 12 }]} />
-            <View style={[styles.waveLine, { height: 24 }]} />
-            <View style={[styles.waveLine, { height: 15 }]} />
-            <View style={[styles.waveLine, { height: 30 }]} />
-            <View style={[styles.waveLine, { height: 17 }]} />
-          </View>
-          <View style={styles.askMic}><Feather name="mic" size={24} color="#fff" /></View>
+          <VoiceWave />
+          <AskMic />
           <View style={styles.askCopy}>
             <Text style={styles.askTitle}>{t('home.askTitle')}</Text>
             <Text style={styles.askSub}>{t('home.askSub')}</Text>
@@ -700,8 +844,9 @@ const styles = StyleSheet.create({
   sectionTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontWeight: '600', fontSize: 14, color: '#51382d' },
   insightGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, paddingHorizontal: 15 },
-  insightCard: { width: '48.5%', minHeight: 112, borderRadius: 15, padding: 11, justifyContent: 'space-between' },
+  insightCard: { width: '48.5%', minHeight: 112, borderRadius: 15, padding: 11, justifyContent: 'space-between', overflow: 'hidden' },
   insightIcon: { width: 34, height: 34, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  insightBgImage: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.9 },
   om: { fontSize: 25, lineHeight: 28 },
   insightLabel: { fontWeight: '500', fontSize: 10, color: '#68473f', marginTop: 8 },
   insightValue: { fontWeight: '600', fontSize: 12, lineHeight: 15, color: '#3e2b27', marginTop: 2 },
@@ -729,6 +874,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
   },
+  horoscopeStarGlow: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#ffe9a8',
+  },
   horoscopeStarGlyph: { fontSize: 20, color: '#ffe9a8' },
   horoscopeCopy: { flex: 1 },
   horoscopeTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
@@ -737,6 +889,8 @@ const styles = StyleSheet.create({
   askButtonPressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
   waveIcon: { height: 31, width: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   waveLine: { width: 2, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.68)' },
+  askMicWrap: { width: 47, height: 47, alignItems: 'center', justifyContent: 'center' },
+  askMicRing: { position: 'absolute', width: 47, height: 47, borderRadius: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.9)' },
   askMic: { width: 47, height: 47, borderRadius: 24, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.7)', alignItems: 'center', justifyContent: 'center', shadowColor: '#fff', shadowOpacity: 0.7, shadowRadius: 8, shadowOffset: { width: 0, height: 0 } },
   askCopy: { flex: 1 },
   askTitle: { fontWeight: '600', fontSize: 17, color: '#fff' },
