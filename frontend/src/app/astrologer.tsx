@@ -61,8 +61,8 @@ export default function AstrologerScreen() {
         <View style={styles.hero}>
           <HeroPhoto uri={a.photo} />
           <LinearGradient
-            colors={['rgba(15,10,38,0.35)', 'transparent', 'rgba(15,10,38,0.55)', NIGHT]}
-            locations={[0, 0.3, 0.75, 1]}
+            colors={['rgba(15,10,38,0.4)', 'transparent', 'transparent', NIGHT]}
+            locations={[0, 0.25, 0.82, 1]}
             style={StyleSheet.absoluteFill}
           />
           <Pressable
@@ -71,14 +71,13 @@ export default function AstrologerScreen() {
           >
             <Feather name="chevron-left" size={22} color="#fff" />
           </Pressable>
-          <View style={styles.heroCaption}>
-            <Text style={styles.name}>{a.name}</Text>
-            <Text style={[styles.title, { color: a.accent }]}>{a.title}</Text>
-          </View>
         </View>
 
         <Animated.View entering={FadeInDown.duration(300)} style={styles.body}>
-          <View style={styles.statRow}>
+          <Text style={styles.name}>{a.name}</Text>
+          <Text style={[styles.title, { color: a.accent }]}>{a.title}</Text>
+
+          <View style={[styles.statRow, { marginTop: 16 }]}>
             <Stat value={`${a.experienceYears}`} label="Years" />
             <Stat value={a.languages.join(' / ')} label="Languages" />
             <Stat value={a.location.split(',')[0]} label="Based in" />
@@ -142,11 +141,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(15,10,38,0.4)',
   },
-  heroCaption: { position: 'absolute', left: 20, right: 20, bottom: 14 },
-  name: { fontSize: 27, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
+  name: { fontSize: 26, fontWeight: '800', color: '#fff', letterSpacing: 0.2 },
   title: { fontSize: 13, fontWeight: '700', marginTop: 4 },
 
-  body: { paddingHorizontal: 20, paddingTop: 4 },
+  body: { paddingHorizontal: 20, paddingTop: 14 },
   statRow: { flexDirection: 'row', gap: 10 },
   stat: {
     flex: 1,
