@@ -32,6 +32,30 @@ class PanchangCache(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Horoscope(SQLModel, table=True):
+    """One sign's daily horoscope. Not user data — the same for everyone on a
+    given day. All 12 signs are written by a single Sarvam call (the first
+    request of the day) and cached here; later reads are cache hits. With
+    HOROSCOPE_AUTOGEN=false no new rows are written and the app serves the last
+    cached day (or an offline template)."""
+
+    __tablename__ = "horoscopes"
+    __table_args__ = (UniqueConstraint("sign", "date", name="uq_horoscope_sign_date"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    sign: str = Field(index=True)  # English name: Aries .. Pisces
+    date: date  # IST date this horoscope is for
+    guidance: str = ""
+    lucky_color: str = ""
+    lucky_number: str = ""
+    mood: str = ""
+    best_time: str = ""
+    tithi: str = ""      # shared panchang for the day (context, same for all signs)
+    nakshatra: str = ""
+    source: str = Field(default="ai")  # ai | fallback
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Payment(SQLModel, table=True):
     """One Razorpay payment. Immutable ledger (finalview.txt §7/§10): the row is
     only ever advanced created → paid → consumed (or → failed). Money logic is

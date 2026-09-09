@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Open-Meteo geocoding — free, no key. Resolves a city to lat/lon/timezone.
     geocoding_url: str = "https://geocoding-api.open-meteo.com/v1/search"
 
+    # Daily Horoscope. One Sarvam call per day writes all 12 signs; every read
+    # after that is a cache hit. Set HOROSCOPE_AUTOGEN=false to stop calling
+    # Sarvam entirely — the screen then serves the last cached day, falling back
+    # to an offline weekday template. Zero ongoing Sarvam credits when off.
+    horoscope_autogen: bool = True
+
     # Gemini (Google AI Studio) — used only for palm/face IMAGE analysis. The
     # narrative reading still comes from Sarvam. Free-tier key is fine.
     gemini_api_key: str = ""

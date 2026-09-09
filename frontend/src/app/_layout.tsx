@@ -27,6 +27,7 @@ function AppShell() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="consult" />
       <Stack.Screen name="kundali" />
+      <Stack.Screen name="horoscope" />
       <Stack.Screen name="palm" />
       <Stack.Screen name="face" />
       <Stack.Screen name="aura" />

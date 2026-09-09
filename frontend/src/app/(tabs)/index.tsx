@@ -531,6 +531,26 @@ export default function HomeScreen() {
         </View>
 
         <Pressable
+          style={({ pressed }) => [styles.horoscopeCard, pressed && styles.pressedCard]}
+          onPress={async () => {
+            await Haptics.selectionAsync();
+            router.push((isSignedIn ? '/horoscope' : '/(tabs)/profile') as Href);
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.horoscopeTitle')}
+        >
+          <LinearGradient colors={['#241a54', '#3a2a7a', '#5b3aa6']} style={StyleSheet.absoluteFill} />
+          <View style={styles.horoscopeStar}>
+            <Text style={styles.horoscopeStarGlyph}>✦</Text>
+          </View>
+          <View style={styles.horoscopeCopy}>
+            <Text style={styles.horoscopeTitle}>{t('home.horoscopeTitle')}</Text>
+            <Text style={styles.horoscopeSub}>{t('home.horoscopeSub')}</Text>
+          </View>
+          <Feather name="chevron-right" size={20} color="#d9ccff" />
+        </Pressable>
+
+        <Pressable
           style={({ pressed }) => [styles.askButton, pressed && styles.askButtonPressed]}
           onPress={askAstraVeda}
         >
@@ -685,6 +705,34 @@ const styles = StyleSheet.create({
   om: { fontSize: 25, lineHeight: 28 },
   insightLabel: { fontWeight: '500', fontSize: 10, color: '#68473f', marginTop: 8 },
   insightValue: { fontWeight: '600', fontSize: 12, lineHeight: 15, color: '#3e2b27', marginTop: 2 },
+  horoscopeCard: {
+    marginHorizontal: 15,
+    marginTop: 18,
+    minHeight: 66,
+    borderRadius: 20,
+    overflow: 'hidden',
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#3a2a7a',
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  horoscopeStar: {
+    width: 44,
+    height: 44,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  horoscopeStarGlyph: { fontSize: 20, color: '#ffe9a8' },
+  horoscopeCopy: { flex: 1 },
+  horoscopeTitle: { fontSize: 16, fontWeight: '800', color: '#fff' },
+  horoscopeSub: { fontSize: 10, color: 'rgba(233,226,255,0.8)', marginTop: 2, lineHeight: 13 },
   askButton: { marginHorizontal: 15, marginTop: 18, minHeight: 70, borderRadius: 23, overflow: 'hidden', paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#8f29dd', shadowColor: '#a72be6', shadowOpacity: 0.45, shadowRadius: 15, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   askButtonPressed: { opacity: 0.82, transform: [{ scale: 0.985 }] },
   waveIcon: { height: 31, width: 27, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
