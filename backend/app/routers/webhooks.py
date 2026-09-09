@@ -8,8 +8,10 @@ Copy the signing secret into CLERK_WEBHOOK_SECRET.
 
 from __future__ import annotations
 
+import hmac
 import logging
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlmodel import Session, select
@@ -18,8 +20,8 @@ from svix.webhooks import Webhook, WebhookVerificationError
 from app.auth import get_or_create_user
 from app.config import get_settings
 from app.db import get_session
-from app.models import Payment, PaymentWebhook, User
-from app.services import payments
+from app.models import Consultation, Payment, PaymentWebhook, User
+from app.services import payments, voice
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 settings = get_settings()
@@ -145,3 +147,60 @@ async def razorpay_webhook(request: Request, session: Session = Depends(get_sess
             session.commit()
 
     return {"ok": True, "event": event_type}
+
+
+@router.post("/sarvam")
+async def sarvam_voice_webhook(
+    request: Request, session: Session = Depends(get_session)
+) -> dict:
+    """End-of-call webhook for Ask AstraVeda voice consultations.
+
+    Sarvam POSTs here after EVERY attempt (connected or not). Auth is the shared
+    secret we put in webhook_config.metadata when placing the call — Sarvam
+    echoes metadata back verbatim (sarvamvoice.txt §6). Idempotent on the
+    consultation id.
+    """
+    try:
+        payload = await request.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Body is not valid JSON") from exc
+
+    meta = (payload.get("webhook_config") or {}).get("metadata") or {}
+    secret = str(meta.get("secret") or "")
+    if not settings.sarvam_voice_webhook_secret or not hmac.compare_digest(
+        secret, settings.sarvam_voice_webhook_secret
+    ):
+        raise HTTPException(status_code=401, detail="bad secret")
+
+    cid = meta.get("consultation_id")
+    if not cid:
+        return {"ok": True, "skipped": "no consultation id"}
+    try:
+        row = session.get(Consultation, UUID(str(cid)))
+    except ValueError:
+        row = None
+    if row is None:
+        return {"ok": True, "skipped": "unknown consultation"}
+    if row.status in ("completed", "missed", "callback_requested"):
+        return {"ok": True, "duplicate": True}
+
+    final_vars = payload.get("final_agent_variables") or {}
+    new_status, outcome = voice.derive_outcome(payload.get("status"), final_vars)
+
+    dur = payload.get("duration")
+    row.status = new_status
+    row.outcome = outcome
+    row.duration_sec = int(dur) if isinstance(dur, (int, float)) else None
+    row.interaction_id = payload.get("interaction_id") or row.interaction_id
+    row.failure_reason = payload.get("failure_reason") or row.failure_reason
+    row.final_vars = final_vars
+    row.call_summary = str(final_vars.get("call_summary") or "")
+    row.transcript = [
+        {"role": t.get("role"), "text": t.get("en_text") or t.get("text") or ""}
+        for t in (payload.get("interaction_transcript") or [])
+        if isinstance(t, dict)
+    ]
+    row.completed_at = datetime.utcnow()
+    session.add(row)
+    session.commit()
+    return {"ok": True, "status": new_status}

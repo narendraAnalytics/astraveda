@@ -64,6 +64,27 @@ class Settings(BaseSettings):
     wallet_min_topup_paise: int = 10000
     wallet_max_topup_paise: int = 5000000  # ₹50,000
 
+    # ---- Sarvam Voice Agents (Samvaad) — "Ask AstraVeda" voice consultation ----
+    # A SEPARATE key from sarvam_api_key: the voice API uses the sk_samvaad_ key,
+    # the X-API-Key header, and the apps.sarvam.ai host (not api.sarvam.ai).
+    sarvam_voice_api_key: str = ""
+    sarvam_voice_base_url: str = "https://apps.sarvam.ai"
+    sarvam_voice_org_id: str = ""
+    sarvam_voice_workspace_id: str = ""
+    sarvam_voice_app_id: str = ""
+    # INTEGER of a COMMITTED agent version (never a Draft) — see sarvamvoice.txt §4.
+    sarvam_voice_app_version: int = 1
+    sarvam_voice_connection_id: str = ""
+    sarvam_voice_agent_phone_number: str = ""  # E.164 outbound caller id
+    # Shared secret echoed back on the end-of-call webhook (webhook_config.metadata).
+    sarvam_voice_webhook_secret: str = ""
+    # Guards POST /consult/tick, which the Render cron job hits to place due calls.
+    consult_tick_secret: str = ""
+    # Public https base of THIS backend — Sarvam posts the end-of-call webhook here.
+    public_base_url: str = "https://astraveda-8sqc.onrender.com"
+    # Price of one voice consultation, in paise. ₹99 = 9900. Server-set, never client.
+    consult_price_paise: int = 9900
+
     @property
     def sqlalchemy_url(self) -> str:
         if not self.database_url:

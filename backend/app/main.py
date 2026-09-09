@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth import _public_key
 from app.config import get_settings
 from app.db import init_db
+from app.services import voice
 from app.routers import (
-    aura, auth, cosmic, dream, face, kundali, palm, puja, translate, vastu, wallet, webhooks,
+    aura, auth, consult, cosmic, dream, face, kundali, palm, puja, translate, vastu, wallet, webhooks,
 )
 
 settings = get_settings()
@@ -47,6 +48,7 @@ app.include_router(vastu.router)
 app.include_router(puja.router)
 app.include_router(wallet.router)
 app.include_router(cosmic.router)
+app.include_router(consult.router)
 
 
 @app.get("/health")
@@ -65,6 +67,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "sarvam_configured": bool(settings.sarvam_api_key),
+        "sarvam_voice_configured": voice.is_configured(),
         "gemini_configured": bool(settings.gemini_api_key),
         "razorpay_configured": bool(settings.razorpay_key_id and settings.razorpay_key_secret),
         "razorpay_webhook_configured": bool(settings.razorpay_webhook_secret),

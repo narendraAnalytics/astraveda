@@ -395,10 +395,7 @@ export default function HomeScreen() {
 
   const askAstraVeda = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(t('home.askListeningTitle'), t('home.askListeningBody'), [
-      { text: t('common.notNow'), style: 'cancel' },
-      { text: t('home.beginVoice'), onPress: () => Alert.alert(t('home.beginVoice'), 'Your microphone space is ready for the next step.') },
-    ]);
+    router.push((isSignedIn ? '/consult' : '/(tabs)/profile') as Href);
   };
 
   const openTool = async (tool: Tool) => {

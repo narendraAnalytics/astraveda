@@ -43,7 +43,7 @@ class Payment(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(index=True, foreign_key="users.id")
 
-    purpose: str = Field(default="kundali")  # kundali | face | palm | aura | dream | vastu | puja | wallet_topup
+    purpose: str = Field(default="kundali")  # kundali | face | palm | aura | dream | vastu | consult | puja | wallet_topup
     amount_paise: int
     currency: str = Field(default="INR")
 
@@ -309,6 +309,62 @@ class DreamReading(SQLModel, table=True):
     payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Consultation(SQLModel, table=True):
+    """One "Ask AstraVeda" voice consultation.
+
+    The user books from the app; the backend places an OUTBOUND phone call via
+    Sarvam Voice Agents (Samvaad). The AI astrologer verifies the birth details
+    at the start of the call, then gives the reading on that same call. Every
+    call is a paid ₹99 Razorpay order (server-authoritative, finalview.txt §10).
+
+    `booking_type == "now"`      -> call placed immediately on payment.
+    `booking_type == "scheduled"`-> call placed by POST /consult/tick (Render
+                                    cron) when `scheduled_at` is due.
+    """
+
+    __tablename__ = "consultations"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True, foreign_key="users.id")
+
+    caller_name: str
+    phone_e164: str  # +<country><number>, validated server-side
+    consultation_topic: str = "general"  # career | marriage | health | finance | general
+    user_question: str = ""
+
+    # Birth details — read back to the caller for confirmation; optional.
+    birth_date: date | None = None
+    birth_time: time | None = None
+    unknown_time: bool = False
+    birth_place: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
+    timezone: str | None = None  # IANA name
+
+    booking_type: str = Field(default="now")  # now | scheduled
+    scheduled_at: datetime | None = None  # UTC; set for slot bookings
+    slot_label: str = "now"  # e.g. "Tomorrow, 3:00 PM"
+
+    # created -> paid -> calling -> completed | missed | callback_requested | failed
+    status: str = Field(default="created")
+    outcome: str | None = None  # finer label from the end-of-call webhook
+
+    attempt_id: str | None = None      # Sarvam outbound attempt id
+    interaction_id: str | None = None  # -> analytics API for the full transcript
+    duration_sec: int | None = None
+    failure_reason: str | None = None
+
+    call_summary: str = ""
+    transcript: list = Field(default_factory=list, sa_type=JSON)  # [{role, text}]
+    final_vars: dict = Field(default_factory=dict, sa_type=JSON)  # raw final_agent_variables
+
+    payment_id: UUID | None = Field(default=None, foreign_key="payments.id")
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    called_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 # ---------------------------------------------------------------------------
