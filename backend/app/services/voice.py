@@ -87,18 +87,6 @@ def agent_variables(c) -> dict:
     return {k: (str(raw.get(k)) or "unknown") for k in _INPUT_KEYS}
 
 
-def _initial_message(c) -> str:
-    if c.booking_type == "scheduled":
-        return (
-            f"Namaste {c.caller_name}, this is AstraVeda calling for your "
-            f"astrology consultation booked for {c.slot_label}. Is now a good time?"
-        )
-    return (
-        f"Namaste {c.caller_name}, this is AstraVeda's AI astrologer. "
-        "I have your details here — shall we begin your reading?"
-    )
-
-
 def place_call(c) -> str:
     """Place the outbound call for Consultation `c`. Returns the Sarvam
     attempt_id. Raises VoiceError with the raw provider body on any failure."""
@@ -115,10 +103,10 @@ def place_call(c) -> str:
                 "agent_phone_number": settings.sarvam_voice_agent_phone_number,
             },
             "agent_variables": agent_variables(c),
-            "app_overrides": {
-                "initial_language_name": "English",
-                "initial_bot_message": _initial_message(c),
-            },
+            # Keep overrides minimal — the committed agent owns its greeting and
+            # entry state. initial_bot_message here can break call start if the
+            # agent has no matching state. Language only.
+            "app_overrides": {"initial_language_name": "English"},
         },
         "user_config": {"user_phone_number": c.phone_e164},
         "webhook_config": {
