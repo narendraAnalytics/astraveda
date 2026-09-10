@@ -22,7 +22,14 @@ const STEPS = [
   'Composing your reading…',
 ];
 
-export function CosmicLoader({ size = 220 }: { size?: number }) {
+export function CosmicLoader({
+  size = 220,
+  showStatus = true,
+}: {
+  size?: number;
+  /** Hide the cycling "Casting the Lagna…" step text — for decorative use (e.g. the intro). */
+  showStatus?: boolean;
+}) {
   const [reduceMotion, setReduceMotion] = useState(false);
   const [step, setStep] = useState(0);
   const spin = useSharedValue(0);
@@ -43,9 +50,10 @@ export function CosmicLoader({ size = 220 }: { size?: number }) {
   }, [reduceMotion, spin, pulse]);
 
   useEffect(() => {
+    if (!showStatus) return;
     const id = setInterval(() => setStep((s) => (s + 1) % STEPS.length), 2100);
     return () => clearInterval(id);
-  }, []);
+  }, [showStatus]);
 
   const ringStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value * 360}deg` }] }));
   const coreStyle = useAnimatedStyle(() => ({
@@ -93,11 +101,13 @@ export function CosmicLoader({ size = 220 }: { size?: number }) {
         </Animated.View>
       </View>
 
-      <View style={styles.statusWrap}>
-        <Animated.Text key={step} entering={FadeIn.duration(400)} exiting={FadeOut.duration(300)} style={styles.status}>
-          {STEPS[step]}
-        </Animated.Text>
-      </View>
+      {showStatus ? (
+        <View style={styles.statusWrap}>
+          <Animated.Text key={step} entering={FadeIn.duration(400)} exiting={FadeOut.duration(300)} style={styles.status}>
+            {STEPS[step]}
+          </Animated.Text>
+        </View>
+      ) : null}
     </View>
   );
 }

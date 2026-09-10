@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SplashScreen from 'expo-splash-screen';
@@ -7,6 +7,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useReduceMotion } from '../hooks/use-reduce-motion';
+import { CosmicLoader } from './kundali/cosmic-loader';
+
+// Where the baked zodiac wheel sits in INTRO_IMAGE, as fractions of the rendered
+// (cover-cropped) frame. Nudge these if the spinning ring drifts off the artwork.
+const WHEEL_CENTER_X = 0.5;
+const WHEEL_CENTER_Y = 0.34;
+const WHEEL_WIDTH_FRACTION = 0.66;
 
 // Brand intro artwork (Cloudinary). f_auto,q_auto,w_1080 keeps the full-screen
 // image light without a visible quality drop — same pattern as lib/virtual-puja.ts.
@@ -25,6 +32,9 @@ type Props = {
 export function IntroOverlay({ onEnter }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
+  const { width, height } = useWindowDimensions();
+
+  const wheelSize = width * WHEEL_WIDTH_FRACTION;
 
   // Safety net: never let the native splash outlive the intro image.
   const handleLoadEnd = useCallback(() => {
@@ -58,6 +68,19 @@ export function IntroOverlay({ onEnter }: Props) {
         transition={200}
         onLoadEnd={handleLoadEnd}
       />
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: width * WHEEL_CENTER_X - wheelSize / 2,
+          top: height * WHEEL_CENTER_Y - wheelSize / 2,
+          width: wheelSize,
+          height: wheelSize,
+        }}
+      >
+        <CosmicLoader size={wheelSize} showStatus={false} />
+      </View>
+
       <LinearGradient
         colors={['transparent', 'rgba(10,4,20,0.15)', 'rgba(10,4,20,0.72)']}
         style={styles.scrim}
