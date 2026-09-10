@@ -38,3 +38,16 @@ export async function translateText(
     return text;
   }
 }
+
+/**
+ * Translate several strings at once into the active app language. Each string is
+ * memoized and Postgres-cached independently, so repeated calls are cheap.
+ * Returns the inputs unchanged for English / on error / if API_URL is unset.
+ */
+export async function translateMany(
+  texts: string[],
+  targetLang: LanguageCode = i18n.language as LanguageCode,
+): Promise<string[]> {
+  if (targetLang === 'en' || !API_URL) return texts;
+  return Promise.all(texts.map((text) => translateText(text, targetLang)));
+}

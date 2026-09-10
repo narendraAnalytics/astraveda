@@ -588,9 +588,9 @@ export default function HomeScreen() {
           </Pressable>
           <View style={styles.brandLockup}>
             <Image source={{ uri: LOGO_URL }} style={styles.logo} contentFit="cover" />
-            <View>
-              <Text style={styles.brandName}>ASTRAVEDA</Text>
-              <Text style={styles.brandTagline}>{t('home.brandTagline')}</Text>
+            <View style={styles.brandText}>
+              <Text style={styles.brandName} numberOfLines={1}>ASTRAVEDA</Text>
+              <Text style={styles.brandTagline} numberOfLines={1}>{t('home.brandTagline')}</Text>
             </View>
           </View>
           <View style={styles.headerActions}>
@@ -605,7 +605,7 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.bellButton, pressed && styles.pressed]}
               onPress={() => Alert.alert('All caught up', 'Your divine reminders will appear here.')}
             >
-              <Feather name="bell" size={20} color="#3c2924" />
+              <Feather name="bell" size={18} color="#3c2924" />
               <View style={styles.notificationDot} />
             </Pressable>
           </View>
@@ -764,18 +764,19 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#fffaf2' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, marginBottom: 14 },
-  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#fff4e7' },
-  brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 3 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginBottom: 14, gap: 8 },
+  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#fff4e7', flexShrink: 0 },
+  brandLockup: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 3 },
+  brandText: { flex: 1, minWidth: 0 },
   logo: { width: 39, height: 39, borderRadius: 20 },
   brandName: { fontWeight: '600', fontSize: 14, letterSpacing: 1.7, color: '#603f28' },
   brandTagline: { fontSize: 7.5, color: '#9b765c', marginTop: 2 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headerActions: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 6 },
   creditBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#fff7eb', borderWidth: 1, borderColor: '#efd9b4', borderRadius: 18, paddingVertical: 4, paddingHorizontal: 8 },
   coin: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#d29a34', alignItems: 'center', justifyContent: 'center' },
   creditText: { fontWeight: '500', fontSize: 9, lineHeight: 11, color: '#8e621e' },
-  bellButton: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
-  notificationDot: { position: 'absolute', right: 7, top: 8, width: 7, height: 7, borderRadius: 4, backgroundColor: '#e3484c', borderWidth: 1.5, borderColor: '#fffaf2' },
+  bellButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 20, backgroundColor: '#fff4e7', flexShrink: 0 },
+  notificationDot: { position: 'absolute', right: 9, top: 9, width: 7, height: 7, borderRadius: 4, backgroundColor: '#e3484c', borderWidth: 1.5, borderColor: '#fff4e7' },
   pressed: { opacity: 0.62 },
   heroCard: { marginHorizontal: 14, borderRadius: 25, overflow: 'hidden', backgroundColor: '#c98142', shadowColor: '#935522', shadowOpacity: 0.19, shadowRadius: 14, shadowOffset: { width: 0, height: 7 }, elevation: 6 },
   pujaBanner: {
