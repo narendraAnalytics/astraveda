@@ -91,6 +91,14 @@ class Settings(BaseSettings):
     # Price of one voice consultation, in paise. ₹99 = 9900. Server-set, never client.
     consult_price_paise: int = 9900
 
+    # ---- Bulbul TTS — human-sounding narration (welcome robot greeting, etc.) ----
+    # Reuses sarvam_api_key (same "api-subscription-key" header as translate).
+    # Purely decorative: if the request fails for any reason, callers fall back
+    # to the on-device system voice, so nothing else depends on this.
+    sarvam_tts_model: str = "bulbul:v3"
+    sarvam_tts_speaker: str = "anand"
+    sarvam_tts_language_code: str = "en-IN"
+
     @property
     def sqlalchemy_url(self) -> str:
         if not self.database_url:

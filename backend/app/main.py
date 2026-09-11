@@ -9,8 +9,8 @@ from app.config import get_settings
 from app.db import init_db
 from app.services import voice
 from app.routers import (
-    aura, auth, consult, cosmic, dream, face, horoscope, kundali, palm, puja, translate, vastu,
-    wallet, webhooks,
+    aura, auth, consult, cosmic, dream, face, horoscope, kundali, palm, puja, translate, tts,
+    vastu, wallet, webhooks,
 )
 
 settings = get_settings()
@@ -51,6 +51,7 @@ app.include_router(wallet.router)
 app.include_router(cosmic.router)
 app.include_router(consult.router)
 app.include_router(horoscope.router)
+app.include_router(tts.router)
 
 
 @app.get("/health")
@@ -69,6 +70,7 @@ def health() -> dict:
     return {
         "status": "ok",
         "sarvam_configured": bool(settings.sarvam_api_key),
+        "sarvam_tts_configured": bool(settings.sarvam_api_key),
         "sarvam_voice_configured": voice.is_configured(),
         "gemini_configured": bool(settings.gemini_api_key),
         "horoscope_autogen": bool(settings.horoscope_autogen),

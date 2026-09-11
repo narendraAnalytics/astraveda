@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useUser } from '@clerk/expo';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import * as Speech from 'expo-speech';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -22,6 +21,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useReduceMotion } from '../hooks/use-reduce-motion';
+import { useRobotVoice } from '../hooks/use-robot-voice';
 
 type Props = {
   visible: boolean;
@@ -74,6 +74,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
   const [stage, setStage] = useState<'greeting' | 'features'>('greeting');
   const [muted, setMuted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const robotVoice = useRobotVoice();
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -160,14 +161,12 @@ export function WelcomeRobot({ visible, onClose }: Props) {
     const spoken = `Welcome, ${displayName}! Hi from AstraVeda.`;
     const speakDelay = setTimeout(() => {
       haptic(Haptics.ImpactFeedbackStyle.Medium);
-      Speech.speak(spoken, {
-        rate: 0.95,
+      robotVoice.speak(spoken, {
         onStart: () => setIsSpeaking(true),
         onDone: () => {
           setIsSpeaking(false);
           advanceToFeatures();
         },
-        onStopped: () => setIsSpeaking(false),
         onError: () => {
           setIsSpeaking(false);
           advanceToFeatures();
@@ -175,32 +174,30 @@ export function WelcomeRobot({ visible, onClose }: Props) {
       });
     }, 650);
     return () => clearTimeout(speakDelay);
-  }, [visible, muted, stage, displayName, advanceToFeatures]);
+  }, [visible, muted, stage, displayName, advanceToFeatures, robotVoice]);
 
   useEffect(() => {
     if (!visible || muted || stage !== 'features') return;
     const spoken = `Here's what you can explore. ${FEATURES.map((f) => f.label).join('. ')}.`;
-    Speech.speak(spoken, {
-      rate: 0.95,
+    robotVoice.speak(spoken, {
       onStart: () => setIsSpeaking(true),
       onDone: () => setIsSpeaking(false),
-      onStopped: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false),
     });
-  }, [visible, muted, stage]);
+  }, [visible, muted, stage, robotVoice]);
 
   useEffect(() => {
     if (!visible) {
-      Speech.stop();
+      robotVoice.stop();
       setIsSpeaking(false);
     }
-  }, [visible]);
+  }, [visible, robotVoice]);
 
   useEffect(() => {
     return () => {
-      Speech.stop();
+      robotVoice.stop();
     };
-  }, []);
+  }, [robotVoice]);
 
   useEffect(() => {
     if (!visible || stage !== 'features') return;
@@ -218,12 +215,12 @@ export function WelcomeRobot({ visible, onClose }: Props) {
     setMuted((prev) => {
       const next = !prev;
       if (next) {
-        Speech.stop();
+        robotVoice.stop();
         setIsSpeaking(false);
       }
       return next;
     });
-  }, []);
+  }, [robotVoice]);
 
   useEffect(() => {
     if (!visible || reduceMotion) return;
@@ -296,10 +293,10 @@ export function WelcomeRobot({ visible, onClose }: Props) {
   }, [visible, reduceMotion, walkX, bob, armAngle, eyeBlink]);
 
   const handleClose = useCallback(() => {
-    Speech.stop();
+    robotVoice.stop();
     setIsSpeaking(false);
     onClose();
-  }, [onClose]);
+  }, [onClose, robotVoice]);
 
   const bodyStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: walkX.value }, { translateY: bob.value }],
