@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { ClerkProvider } from '@clerk/expo';
+import { ClerkProvider, useUser } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { I18nextProvider } from 'react-i18next';
 
@@ -29,8 +29,34 @@ function AppShell() {
   // bundle reloads); dismissed only by the Enter button.
   const [entered, setEntered] = useState(false);
 
-  // Robot mascot — walks in once, right after Enter is tapped.
+  // Robot mascot — walks in once, right after Enter is tapped, and again
+  // right after a guest signs in (so the re-greeting uses their real name).
+  // The sign-in re-greeting is deferred until the user is actually on the
+  // Home tab (e.g. sign-in happens on Profile) so it never appears there.
   const [showRobot, setShowRobot] = useState(false);
+  const [pendingWelcomeBack, setPendingWelcomeBack] = useState(false);
+  const { isSignedIn } = useUser();
+  const prevSignedInRef = useRef(isSignedIn);
+  const pathname = usePathname();
+  const isHomeTab = pathname === '/';
+
+  useEffect(() => {
+    if (entered && prevSignedInRef.current === false && isSignedIn === true) {
+      setPendingWelcomeBack(true);
+    }
+    prevSignedInRef.current = isSignedIn;
+  }, [isSignedIn, entered]);
+
+  useEffect(() => {
+    if (pendingWelcomeBack && isHomeTab) {
+      setShowRobot(true);
+      setPendingWelcomeBack(false);
+    }
+  }, [pendingWelcomeBack, isHomeTab]);
+
+  useEffect(() => {
+    if (showRobot && !isHomeTab) setShowRobot(false);
+  }, [showRobot, isHomeTab]);
 
   return (
     <View style={{ flex: 1 }}>
