@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     # Purely decorative: if the request fails for any reason, callers fall back
     # to the on-device system voice, so nothing else depends on this.
     sarvam_tts_model: str = "bulbul:v3"
-    sarvam_tts_speaker: str = "anand"
+    sarvam_tts_speaker: str = "priya"
     sarvam_tts_language_code: str = "en-IN"
 
     @property
