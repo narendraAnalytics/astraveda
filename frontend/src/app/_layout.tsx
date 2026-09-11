@@ -9,6 +9,7 @@ import { I18nextProvider } from 'react-i18next';
 import { i18n, initI18n } from '../i18n';
 import { useSyncUser } from '../hooks/use-sync-user';
 import { IntroOverlay } from '../components/intro-overlay';
+import { WelcomeRobot } from '../components/welcome-robot';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,6 +28,9 @@ function AppShell() {
   // Welcome gate — shown on every cold start (this state resets when the JS
   // bundle reloads); dismissed only by the Enter button.
   const [entered, setEntered] = useState(false);
+
+  // Robot mascot — walks in once, right after Enter is tapped.
+  const [showRobot, setShowRobot] = useState(false);
 
   return (
     <View style={{ flex: 1 }}>
@@ -52,7 +56,15 @@ function AppShell() {
         <Stack.Screen name="wallet" />
         <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
       </Stack>
-      {!entered && <IntroOverlay onEnter={() => setEntered(true)} />}
+      {!entered && (
+        <IntroOverlay
+          onEnter={() => {
+            setEntered(true);
+            setShowRobot(true);
+          }}
+        />
+      )}
+      {entered && <WelcomeRobot visible={showRobot} onClose={() => setShowRobot(false)} />}
     </View>
   );
 }
