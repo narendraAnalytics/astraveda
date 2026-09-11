@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useEvent } from 'expo';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -69,6 +69,19 @@ export function IntroOverlay({ onEnter }: Props) {
     hideSplash();
     player.play();
   }, [videoReady, player, hideSplash]);
+
+  // A system overlay (e.g. the screen-recording "Start recording?" prompt)
+  // briefly backgrounds the app; if `play()` above fired during that window
+  // it can get stuck paused with no automatic resume. Re-assert play once the
+  // app is active again — mirrors the same AppState resume pattern used for
+  // the Android nav bar in (tabs)/_layout.tsx.
+  useEffect(() => {
+    if (!videoReady) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && !player.playing) player.play();
+    });
+    return () => sub.remove();
+  }, [videoReady, player]);
 
   const toggleMute = useCallback(() => {
     player.muted = !player.muted;
