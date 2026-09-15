@@ -57,10 +57,24 @@ const FEATURES: { icon: keyof typeof Feather.glyphMap; label: string }[] = [
 export function WelcomeRobot({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
-  const { isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
 
-  const displayName = isSignedIn ? (user?.firstName ?? user?.username ?? 'friend') : 'friend';
-  const greeting = `Welcome, ${displayName}! 👋\nHi from AstraVeda`;
+  const liveDisplayName = isSignedIn ? (user?.firstName ?? user?.username ?? 'friend') : 'friend';
+
+  // Clerk resolves the signed-in session asynchronously, so `liveDisplayName`
+  // can flip from 'friend' to the real name a moment after this mounts. Freeze
+  // it once per appearance (only after Clerk has actually loaded) so that
+  // later flip doesn't restart the typing/voice sequence from scratch.
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!visible) {
+      setDisplayName(null);
+      return;
+    }
+    if (isLoaded) setDisplayName(liveDisplayName);
+  }, [visible, isLoaded, liveDisplayName]);
+
+  const greeting = `Welcome, ${displayName ?? 'friend'}! 👋\nHi from AstraVeda`;
 
   const walkX = useSharedValue(reduceMotion ? 0 : -WALK_IN_DISTANCE);
   const bob = useSharedValue(0);
@@ -95,7 +109,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
   }, [isSpeaking, reduceMotion, mouthScale]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || displayName === null) return;
 
     setStage('greeting');
 
