@@ -71,6 +71,15 @@ export function useRobotVoice() {
   const speak = useCallback((text: string, { onStart, onDone, onError }: SpeakCallbacks) => {
     let cancelled = false;
 
+    // Re-assert audio mode before every line, not just once on mount — this
+    // component stays mounted for the whole app session, and if anything
+    // else (the intro video's exclusive `doNotMix` focus, Virtual Puja audio,
+    // etc.) has since taken over the session, a stale mode from mount can
+    // leave playback fetched successfully but silent.
+    setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(
+      () => {},
+    );
+
     const fallback = async () => {
       const voice = await pickFallbackVoice();
       if (cancelled) return;

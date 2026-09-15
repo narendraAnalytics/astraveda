@@ -87,11 +87,29 @@ export function IntroOverlay({ onEnter }: Props) {
     player.muted = !player.muted;
   }, [player]);
 
+  // The video takes EXCLUSIVE audio focus (`doNotMix`, above) so its own
+  // volume reads clearly. Audio focus is a native-process resource that
+  // outlives JS reloads, so relying on the player's unmount cleanup to
+  // release it (which can be delayed/batched in the same commit that also
+  // mounts the robot mascot and starts its own audio request) risked leaving
+  // it held — silencing every later voice line for the rest of the process,
+  // and compounding on each intro replay. Pause + mute synchronously the
+  // instant Enter is tapped so focus is released before anything else asks.
+  const handleEnter = useCallback(() => {
+    try {
+      player.pause();
+      player.muted = true;
+    } catch {
+      // player may already be releasing — safe to ignore.
+    }
+    onEnter();
+  }, [player, onEnter]);
+
   const button = (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Enter AstraVeda"
-      onPress={onEnter}
+      onPress={handleEnter}
       style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
     >
       <LinearGradient
