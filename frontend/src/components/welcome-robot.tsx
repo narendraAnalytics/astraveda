@@ -103,131 +103,123 @@ export function WelcomeRobot({ visible, onClose }: Props) {
     return () => cancelAnimation(mouthScale);
   }, [isSpeaking, reduceMotion, mouthScale]);
 
+  // Read live via refs (not effect deps) so the single sequence effect below
+  // never has to restart when these change mid-sequence.
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
+
+  // Set while a speak() call is in flight; lets the mute button force the
+  // sequence to move on immediately instead of waiting on a callback that a
+  // manually stopped player will never fire.
+  const forceAdvanceRef = useRef<(() => void) | null>(null);
+
+  // Single effect drives the whole one-shot sequence — type greeting, speak
+  // it, show features, speak features — via plain callback chaining. This
+  // used to be five separate effects reacting to each other's state changes
+  // (typingDone/stage/displayName/muted), which was fragile: any one of
+  // those dependencies changing at the wrong moment could silently replay,
+  // double up, or freeze the sequence. This effect depends only on
+  // `visible`, so it runs exactly once per appearance no matter what else
+  // changes while it's running.
   useEffect(() => {
     if (!visible) return;
+    let cancelled = false;
+    let stopCurrentSpeak: (() => void) | undefined;
+    const timers: Array<ReturnType<typeof setTimeout>> = [];
 
     const name = liveDisplayNameRef.current;
     setGreetName(name);
     setStage('greeting');
-
     const greetingText = `Welcome, ${name}! 👋\nHi from AstraVeda`;
 
-    if (reduceMotion) {
-      setTypedText(greetingText);
-      setTypingDone(true);
-      return;
-    }
-
-    setTypedText('');
-    setTypingDone(false);
-
-    let i = 0;
-    let typeInterval: ReturnType<typeof setInterval> | undefined;
-    const startDelay = setTimeout(() => {
-      typeInterval = setInterval(() => {
-        i += 1;
-        setTypedText(greetingText.slice(0, i));
-        if (i >= greetingText.length) {
-          clearInterval(typeInterval);
-          setTypingDone(true);
-        }
-      }, 32);
-    }, 650);
-
-    return () => {
-      clearTimeout(startDelay);
-      if (typeInterval) clearInterval(typeInterval);
-    };
-  }, [visible, reduceMotion]);
-
-  // Advances greeting -> features once, either right after the greeting
-  // voice actually finishes speaking, or (muted / TTS error) via a fallback
-  // timer. Two separate Speech.speak() calls back-to-back cut each other off
-  // on Android, so the features narration must never start before this.
-  const typingDoneRef = useRef(typingDone);
-  useEffect(() => {
-    typingDoneRef.current = typingDone;
-  }, [typingDone]);
-
-  const stageAdvancedRef = useRef(false);
-  useEffect(() => {
-    if (visible) stageAdvancedRef.current = false;
-  }, [visible]);
-
-  const advanceToFeatures = useCallback(() => {
-    if (stageAdvancedRef.current || !typingDoneRef.current) return;
-    stageAdvancedRef.current = true;
-    setStage('features');
-  }, []);
-
-  useEffect(() => {
-    if (!visible || !typingDone) return;
-    // Fallback only — the voice path (below) normally advances sooner via onDone.
-    const fallbackDelay = muted ? FEATURES_DELAY_AFTER_TYPING : FEATURES_DELAY_AFTER_TYPING + 6000;
-    const toFeatures = setTimeout(advanceToFeatures, fallbackDelay);
-    return () => clearTimeout(toFeatures);
-  }, [visible, typingDone, muted, advanceToFeatures]);
-
-  useEffect(() => {
-    if (!visible || muted) return;
-    if (stage !== 'greeting') return;
-    const spoken = `Welcome, ${greetName}! Hi from AstraVeda.`;
-    let cancelSpeak: (() => void) | undefined;
-    const speakDelay = setTimeout(() => {
+    const speakLine = (text: string, after: () => void) => {
+      if (mutedRef.current) {
+        timers.push(setTimeout(after, FEATURES_DELAY_AFTER_TYPING));
+        return;
+      }
+      forceAdvanceRef.current = () => {
+        forceAdvanceRef.current = null;
+        setIsSpeaking(false);
+        after();
+      };
       haptic(Haptics.ImpactFeedbackStyle.Medium);
-      cancelSpeak = robotVoice.speak(spoken, {
-        onStart: () => setIsSpeaking(true),
+      stopCurrentSpeak = robotVoice.speak(text, {
+        onStart: () => !cancelled && setIsSpeaking(true),
         onDone: () => {
+          if (cancelled) return;
+          forceAdvanceRef.current = null;
           setIsSpeaking(false);
-          advanceToFeatures();
+          after();
         },
         onError: () => {
+          if (cancelled) return;
+          forceAdvanceRef.current = null;
           setIsSpeaking(false);
-          advanceToFeatures();
+          after();
         },
       });
-    }, 650);
-    return () => {
-      clearTimeout(speakDelay);
-      cancelSpeak?.();
-      robotVoice.stop();
     };
-  }, [visible, muted, stage, greetName, advanceToFeatures, robotVoice]);
 
-  useEffect(() => {
-    if (!visible || muted || stage !== 'features') return;
-    const spoken = `Here's what you can explore. ${FEATURES.map((f) => f.label).join('. ')}.`;
-    robotVoice.speak(spoken, {
-      onStart: () => setIsSpeaking(true),
-      onDone: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
-    });
-  }, [visible, muted, stage, robotVoice]);
+    const startFeatures = () => {
+      if (cancelled) return;
+      setStage('features');
+      if (reduceMotionRef.current) {
+        haptic(Haptics.ImpactFeedbackStyle.Medium);
+      } else {
+        FEATURES.forEach((_, idx) => {
+          timers.push(
+            setTimeout(() => !cancelled && haptic(Haptics.ImpactFeedbackStyle.Light), idx * FEATURE_STAGGER),
+          );
+        });
+      }
+      const spoken = `Here's what you can explore. ${FEATURES.map((f) => f.label).join('. ')}.`;
+      speakLine(spoken, () => {});
+    };
 
-  useEffect(() => {
-    if (!visible) {
-      robotVoice.stop();
-      setIsSpeaking(false);
+    const afterTyping = () => {
+      if (cancelled) return;
+      setTypingDone(true);
+      speakLine(`Welcome, ${name}! Hi from AstraVeda.`, startFeatures);
+    };
+
+    if (reduceMotionRef.current) {
+      setTypedText(greetingText);
+      afterTyping();
+    } else {
+      setTypedText('');
+      setTypingDone(false);
+      let i = 0;
+      const startDelay = setTimeout(() => {
+        const typeInterval = setInterval(() => {
+          if (cancelled) {
+            clearInterval(typeInterval);
+            return;
+          }
+          i += 1;
+          setTypedText(greetingText.slice(0, i));
+          if (i >= greetingText.length) {
+            clearInterval(typeInterval);
+            afterTyping();
+          }
+        }, 32);
+        timers.push(typeInterval);
+      }, 650);
+      timers.push(startDelay);
     }
+
+    return () => {
+      cancelled = true;
+      forceAdvanceRef.current = null;
+      stopCurrentSpeak?.();
+      robotVoice.stop();
+      timers.forEach((t) => {
+        clearTimeout(t);
+        clearInterval(t);
+      });
+    };
   }, [visible, robotVoice]);
-
-  useEffect(() => {
-    return () => {
-      robotVoice.stop();
-    };
-  }, [robotVoice]);
-
-  useEffect(() => {
-    if (!visible || stage !== 'features') return;
-    if (reduceMotion) {
-      haptic(Haptics.ImpactFeedbackStyle.Medium);
-      return;
-    }
-    const timers = FEATURES.map((_, idx) =>
-      setTimeout(() => haptic(Haptics.ImpactFeedbackStyle.Light), idx * FEATURE_STAGGER),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [visible, stage, reduceMotion]);
 
   const handleToggleMute = useCallback(() => {
     setMuted((prev) => {
@@ -235,6 +227,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
       if (next) {
         robotVoice.stop();
         setIsSpeaking(false);
+        forceAdvanceRef.current?.();
       }
       return next;
     });
