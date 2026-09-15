@@ -159,9 +159,10 @@ export function WelcomeRobot({ visible, onClose }: Props) {
     if (!visible || muted) return;
     if (stage !== 'greeting') return;
     const spoken = `Welcome, ${displayName}! Hi from AstraVeda.`;
+    let cancelSpeak: (() => void) | undefined;
     const speakDelay = setTimeout(() => {
       haptic(Haptics.ImpactFeedbackStyle.Medium);
-      robotVoice.speak(spoken, {
+      cancelSpeak = robotVoice.speak(spoken, {
         onStart: () => setIsSpeaking(true),
         onDone: () => {
           setIsSpeaking(false);
@@ -173,7 +174,11 @@ export function WelcomeRobot({ visible, onClose }: Props) {
         },
       });
     }, 650);
-    return () => clearTimeout(speakDelay);
+    return () => {
+      clearTimeout(speakDelay);
+      cancelSpeak?.();
+      robotVoice.stop();
+    };
   }, [visible, muted, stage, displayName, advanceToFeatures, robotVoice]);
 
   useEffect(() => {
