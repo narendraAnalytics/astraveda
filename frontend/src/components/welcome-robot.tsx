@@ -57,24 +57,19 @@ const FEATURES: { icon: keyof typeof Feather.glyphMap; label: string }[] = [
 export function WelcomeRobot({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isSignedIn, user } = useUser();
 
+  // Read fresh every render, but frozen into `greetName` state below (once
+  // per appearance) so an async Clerk session resolution mid-greeting can't
+  // restart the typing/voice sequence. Guests always resolve to 'friend'
+  // synchronously (isSignedIn is falsy from the first render), so this only
+  // matters for a signed-in cold start.
   const liveDisplayName = isSignedIn ? (user?.firstName ?? user?.username ?? 'friend') : 'friend';
+  const liveDisplayNameRef = useRef(liveDisplayName);
+  liveDisplayNameRef.current = liveDisplayName;
 
-  // Clerk resolves the signed-in session asynchronously, so `liveDisplayName`
-  // can flip from 'friend' to the real name a moment after this mounts. Freeze
-  // it once per appearance (only after Clerk has actually loaded) so that
-  // later flip doesn't restart the typing/voice sequence from scratch.
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  useEffect(() => {
-    if (!visible) {
-      setDisplayName(null);
-      return;
-    }
-    if (isLoaded) setDisplayName(liveDisplayName);
-  }, [visible, isLoaded, liveDisplayName]);
-
-  const greeting = `Welcome, ${displayName ?? 'friend'}! 👋\nHi from AstraVeda`;
+  const [greetName, setGreetName] = useState(liveDisplayName);
+  const greeting = `Welcome, ${greetName}! 👋\nHi from AstraVeda`;
 
   const walkX = useSharedValue(reduceMotion ? 0 : -WALK_IN_DISTANCE);
   const bob = useSharedValue(0);
@@ -109,12 +104,16 @@ export function WelcomeRobot({ visible, onClose }: Props) {
   }, [isSpeaking, reduceMotion, mouthScale]);
 
   useEffect(() => {
-    if (!visible || displayName === null) return;
+    if (!visible) return;
 
+    const name = liveDisplayNameRef.current;
+    setGreetName(name);
     setStage('greeting');
 
+    const greetingText = `Welcome, ${name}! 👋\nHi from AstraVeda`;
+
     if (reduceMotion) {
-      setTypedText(greeting);
+      setTypedText(greetingText);
       setTypingDone(true);
       return;
     }
@@ -127,8 +126,8 @@ export function WelcomeRobot({ visible, onClose }: Props) {
     const startDelay = setTimeout(() => {
       typeInterval = setInterval(() => {
         i += 1;
-        setTypedText(greeting.slice(0, i));
-        if (i >= greeting.length) {
+        setTypedText(greetingText.slice(0, i));
+        if (i >= greetingText.length) {
           clearInterval(typeInterval);
           setTypingDone(true);
         }
@@ -139,7 +138,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
       clearTimeout(startDelay);
       if (typeInterval) clearInterval(typeInterval);
     };
-  }, [visible, reduceMotion, greeting]);
+  }, [visible, reduceMotion]);
 
   // Advances greeting -> features once, either right after the greeting
   // voice actually finishes speaking, or (muted / TTS error) via a fallback
@@ -172,7 +171,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
   useEffect(() => {
     if (!visible || muted) return;
     if (stage !== 'greeting') return;
-    const spoken = `Welcome, ${displayName}! Hi from AstraVeda.`;
+    const spoken = `Welcome, ${greetName}! Hi from AstraVeda.`;
     let cancelSpeak: (() => void) | undefined;
     const speakDelay = setTimeout(() => {
       haptic(Haptics.ImpactFeedbackStyle.Medium);
@@ -193,7 +192,7 @@ export function WelcomeRobot({ visible, onClose }: Props) {
       cancelSpeak?.();
       robotVoice.stop();
     };
-  }, [visible, muted, stage, displayName, advanceToFeatures, robotVoice]);
+  }, [visible, muted, stage, greetName, advanceToFeatures, robotVoice]);
 
   useEffect(() => {
     if (!visible || muted || stage !== 'features') return;
