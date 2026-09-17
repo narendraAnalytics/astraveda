@@ -3,7 +3,25 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-const GLYPHS = ["♈", "♉", "♊", "♋", "♌", "♍", "♎", "♏", "♐", "♑", "♒", "♓"];
+// Fixed positions around the 140px ring (center 70,70, radius 62), computed
+// once ahead of time — NOT with Math.sin/cos at render, since Node's and the
+// browser's math libraries can round transcendental functions differently in
+// their last few decimal digits, which React flags as a hydration mismatch
+// on the resulting inline style.
+const GLYPHS: { glyph: string; left: number; top: number }[] = [
+  { glyph: "♈", left: 62, top: -2 },
+  { glyph: "♉", left: 93, top: 6.31 },
+  { glyph: "♊", left: 115.69, top: 29 },
+  { glyph: "♋", left: 124, top: 60 },
+  { glyph: "♌", left: 115.69, top: 91 },
+  { glyph: "♍", left: 93, top: 113.69 },
+  { glyph: "♎", left: 62, top: 122 },
+  { glyph: "♏", left: 31, top: 113.69 },
+  { glyph: "♐", left: 8.31, top: 91 },
+  { glyph: "♑", left: 0, top: 60 },
+  { glyph: "♒", left: 8.31, top: 29 },
+  { glyph: "♓", left: 31, top: 6.31 },
+];
 
 export default function ZodiacLoader({ label }: { label: string }) {
   const reduceMotion = useReducedMotion();
@@ -22,21 +40,15 @@ export default function ZodiacLoader({ label }: { label: string }) {
           animate={reduceMotion ? undefined : { rotate: 360 }}
           transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
         >
-          {GLYPHS.map((g, i) => {
-            const angle = (i / GLYPHS.length) * 2 * Math.PI;
-            const r = 62;
-            const x = 70 + r * Math.sin(angle);
-            const y = 70 - r * Math.cos(angle);
-            return (
-              <span
-                key={g}
-                className="absolute text-[16px] text-[#F4D28A]"
-                style={{ left: x - 8, top: y - 10 }}
-              >
-                {g}
-              </span>
-            );
-          })}
+          {GLYPHS.map((g) => (
+            <span
+              key={g.glyph}
+              className="absolute text-[16px] text-[#F4D28A]"
+              style={{ left: g.left, top: g.top }}
+            >
+              {g.glyph}
+            </span>
+          ))}
         </motion.div>
         <div className="absolute inset-0 flex items-center justify-center text-[24px] text-[#8F29DD]">
           ✦
