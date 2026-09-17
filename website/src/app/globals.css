@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+:root {
+  --background: #08113a;
+  --foreground: #fff7e6;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), Arial, Helvetica, sans-serif;
+  margin: 0;
+}
+
+@keyframes av-float {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(-14px) translateX(6px);
+  }
+}
+
+@keyframes av-float2 {
+  0%,
+  100% {
+    transform: translateY(0) translateX(0);
+  }
+  50% {
+    transform: translateY(12px) translateX(-8px);
+  }
+}
+
+@keyframes av-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
