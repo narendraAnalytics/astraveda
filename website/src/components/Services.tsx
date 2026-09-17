@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Reveal from "./Reveal";
+import AuthAwareLink from "./auth/AuthAwareLink";
 import { TOOL_IMAGES } from "@/lib/site";
 
 const TOOLS = [
@@ -71,6 +72,47 @@ const TOOLS = [
   },
 ];
 
+function CardShell({
+  interactive,
+  className,
+  style,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  interactive: boolean;
+  className: string;
+  style: React.CSSProperties;
+  onMouseEnter: React.MouseEventHandler<HTMLElement>;
+  onMouseLeave: React.MouseEventHandler<HTMLElement>;
+  children: React.ReactNode;
+}) {
+  if (interactive) {
+    return (
+      <AuthAwareLink
+        signedOutHref="/sign-in"
+        signedInHref="/kundali"
+        className={className}
+        style={style}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
+        {children}
+      </AuthAwareLink>
+    );
+  }
+  return (
+    <div
+      className={className}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function Services() {
   return (
     <section
@@ -103,10 +145,13 @@ export default function Services() {
         </Reveal>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14 pt-9">
-          {TOOLS.map((tool, i) => (
+          {TOOLS.map((tool, i) => {
+            const isLive = tool.title === "My Kundli";
+            return (
             <Reveal key={tool.title} delay={i * 0.06} y={22} className="h-full">
-              <div
-                className="group relative h-full flex flex-col items-center gap-3 text-center pt-14 pb-6 px-5 rounded-[26px] transition-all duration-300 ease-out hover:-translate-y-2"
+              <CardShell
+                interactive={isLive}
+                className={`group relative h-full flex flex-col items-center gap-3 text-center pt-14 pb-6 px-5 rounded-[26px] transition-all duration-300 ease-out hover:-translate-y-2${isLive ? " cursor-pointer" : ""}`}
                 style={{
                   background: `linear-gradient(165deg, ${tool.accent}1F 0%, ${tool.accent2}10 45%, #FFFFFF 100%)`,
                   border: `1px solid ${tool.accent}30`,
@@ -165,9 +210,10 @@ export default function Services() {
                     background: `linear-gradient(90deg, transparent, ${tool.accent}, transparent)`,
                   }}
                 />
-              </div>
+              </CardShell>
             </Reveal>
-          ))}
+            );
+          })}
         </div>
 
         <Reveal delay={0.1} className="mt-12 flex flex-wrap items-center justify-center gap-3">
