@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import Navbar from "@/components/Navbar";
+import MinimalHeader from "@/components/MinimalHeader";
 import KundaliApp from "./kundali-app";
 
 export default async function KundaliPage() {
@@ -9,7 +9,7 @@ export default async function KundaliPage() {
 
   return (
     <div data-nav-theme="dark" className="min-h-screen bg-[#0E0B1E]">
-      <Navbar />
+      <MinimalHeader />
       <main className="max-w-[900px] mx-auto px-4 sm:px-6 pt-32 pb-24">
         <KundaliApp />
       </main>
