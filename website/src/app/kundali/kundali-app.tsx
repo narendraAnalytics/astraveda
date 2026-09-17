@@ -20,6 +20,7 @@ import ZodiacLoader from "@/components/kundali/ZodiacLoader";
 import AvakhadaGrid from "@/components/kundali/AvakhadaGrid";
 import NorthIndianChart from "@/components/kundali/NorthIndianChart";
 import DashaTimeline from "@/components/kundali/DashaTimeline";
+import ReadingView from "@/components/kundali/ReadingView";
 
 type Status = "loading" | "resume" | "form" | "paying" | "generating" | "result";
 
@@ -233,9 +234,7 @@ export default function KundaliApp() {
             </h2>
             {result.reading_en ? (
               <div className="rounded-[20px] bg-[linear-gradient(165deg,#FFFDF8,#FBF2E0)] border border-[#C18426]/20 p-6 sm:p-7">
-                <p className="text-[14.5px] leading-[1.85] text-[#3A2E52] whitespace-pre-line">
-                  {result.reading_en}
-                </p>
+                <ReadingView text={result.reading_en} />
               </div>
             ) : (
               <div className="rounded-[20px] border border-dashed border-[#C18426]/30 p-7 flex flex-col items-start gap-3.5">
