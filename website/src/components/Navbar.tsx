@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Show, UserButton, useUser } from "@clerk/nextjs";
 import { LOGO_URL, NAV_LINKS } from "@/lib/site";
 
 const NAV_TRIGGER = 96;
 
 export default function Navbar() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const { user } = useUser();
+  const displayName = user?.firstName ?? user?.username ?? null;
 
   useEffect(() => {
     const sections = Array.from(
@@ -97,13 +100,29 @@ export default function Navbar() {
           ))}
         </div>
 
-        <a
-          href="#toolkit"
-          className="flex-shrink-0 flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-[9px] rounded-[100px] font-semibold text-[12.5px] sm:text-[13.5px] text-[#241505] shadow-[0_4px_18px_rgba(244,210,138,.35)] whitespace-nowrap"
-          style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
-        >
-          Get Started <span className="text-[13px] sm:text-[14px]">→</span>
-        </a>
+        <div className="flex-shrink-0 flex items-center gap-3">
+          <Show when="signed-out">
+            <a
+              href="/sign-in"
+              className="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-[9px] rounded-[100px] font-semibold text-[12.5px] sm:text-[13.5px] text-[#241505] shadow-[0_4px_18px_rgba(244,210,138,.35)] whitespace-nowrap"
+              style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
+            >
+              Sign In <span className="text-[13px] sm:text-[14px]">→</span>
+            </a>
+          </Show>
+          <Show when="signed-in">
+            {displayName && (
+              <span
+                className={`hidden sm:block text-[13.5px] font-medium whitespace-nowrap transition-colors duration-300 ${
+                  isLight ? "text-[#1B1730]" : "text-[#FFF7E6]"
+                }`}
+              >
+                Welcome, {displayName}
+              </span>
+            )}
+            <UserButton />
+          </Show>
+        </div>
       </div>
 
       <style>{`

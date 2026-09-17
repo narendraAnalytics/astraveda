@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import AuthSync from "@/components/AuthSync";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -28,11 +30,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
+    <ClerkProvider afterSignOutUrl="/">
+      <html
+        lang="en"
+        className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
+      >
+        <body className="min-h-full flex flex-col">
+          <AuthSync />
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

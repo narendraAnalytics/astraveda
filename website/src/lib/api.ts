@@ -1,0 +1,56 @@
+// Base URL of the AstraVeda FastAPI backend (same backend the mobile app
+// uses). Set NEXT_PUBLIC_API_URL in website/.env (and in the Vercel project's
+// Environment Variables — .env is local-only).
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    // Parsed response body, when there is one — e.g. a 409 whose `detail` is a
+    // structured payload the caller needs to act on.
+    public data?: any,
+  ) {
+    super(message);
+  }
+}
+
+type Options = {
+  method?: string;
+  body?: unknown;
+  token?: string | null;
+};
+
+export async function api<T>(
+  path: string,
+  { method = "GET", body, token }: Options = {},
+): Promise<T> {
+  if (!API_URL) throw new ApiError(0, "NEXT_PUBLIC_API_URL is not set");
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  const text = await res.text();
+  let data: any = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    // Non-JSON body (e.g. a plain "Internal Server Error" from a 500).
+    if (!res.ok) {
+      throw new ApiError(res.status, text.slice(0, 300) || res.statusText);
+    }
+    throw new ApiError(res.status, "Unexpected non-JSON response from the server");
+  }
+  if (!res.ok) {
+    const detail = data?.detail;
+    const message = typeof detail === "string" ? detail : res.statusText;
+    throw new ApiError(res.status, message, data);
+  }
+  return data as T;
+}
