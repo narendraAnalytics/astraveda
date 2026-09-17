@@ -112,13 +112,14 @@ export default function Navbar() {
           </Show>
           <Show when="signed-in">
             {displayName && (
-              <span
-                className={`hidden sm:block text-[13.5px] font-medium whitespace-nowrap transition-colors duration-300 ${
+              <a
+                href="/account"
+                className={`hidden sm:block text-[13.5px] font-medium whitespace-nowrap transition-colors duration-300 hover:opacity-80 ${
                   isLight ? "text-[#1B1730]" : "text-[#FFF7E6]"
                 }`}
               >
                 Welcome, {displayName}
-              </span>
+              </a>
             )}
             <UserButton />
           </Show>

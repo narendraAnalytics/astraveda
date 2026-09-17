@@ -1,18 +1,11 @@
 import { SignUp } from "@clerk/nextjs";
+import AuthStage from "@/components/auth/AuthStage";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 
 export default function SignUpPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#0E0B1E] py-16 px-4">
-      <SignUp
-        appearance={{
-          variables: {
-            colorPrimary: "#8F29DD",
-            colorBackground: "#17132B",
-            colorForeground: "#FFF7E6",
-            colorInputForeground: "#FFF7E6",
-          },
-        }}
-      />
-    </main>
+    <AuthStage mode="sign-up">
+      <SignUp appearance={clerkAppearance} />
+    </AuthStage>
   );
 }

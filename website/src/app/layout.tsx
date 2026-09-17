@@ -30,7 +30,23 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider
+      afterSignOutUrl="/"
+      localization={{
+        signIn: {
+          start: {
+            title: "Sign in",
+            subtitle: "Use your email or a connected account",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Create your account",
+            subtitle: "Takes less than a minute",
+          },
+        },
+      }}
+    >
       <html
         lang="en"
         className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
