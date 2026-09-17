@@ -43,7 +43,7 @@ export default function ZodiacLoader({ label }: { label: string }) {
           {GLYPHS.map((g) => (
             <span
               key={g.glyph}
-              className="absolute text-[16px] text-[#F4D28A]"
+              className="absolute text-[16px] text-[#C18426]"
               style={{ left: g.left, top: g.top }}
             >
               {g.glyph}
@@ -54,7 +54,7 @@ export default function ZodiacLoader({ label }: { label: string }) {
           ✦
         </div>
       </div>
-      <p className="text-[14px] text-[rgba(255,247,230,.75)]">
+      <p className="text-[14px] text-[#5B5570]">
         {label}
         {dots}
       </p>

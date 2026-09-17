@@ -22,7 +22,7 @@ import NorthIndianChart from "@/components/kundali/NorthIndianChart";
 import DashaTimeline from "@/components/kundali/DashaTimeline";
 import ReadingView from "@/components/kundali/ReadingView";
 
-type Status = "loading" | "resume" | "form" | "paying" | "generating" | "result";
+type Status = "loading" | "resume" | "form" | "paying" | "generating" | "summary" | "result";
 
 export default function KundaliApp() {
   const { getToken, isLoaded: authLoaded } = useAuth();
@@ -41,7 +41,7 @@ export default function KundaliApp() {
       try {
         const chart = await getLatestKundali(token);
         setResult(chart);
-        setStatus("result");
+        setStatus("summary");
         return;
       } catch (err) {
         if (!(err instanceof ApiError) || err.status !== 404) {
@@ -135,14 +135,14 @@ export default function KundaliApp() {
 
   if (status === "resume" && pending) {
     return (
-      <div className="text-center py-10">
-        <p className="text-[15px] text-[rgba(255,247,230,.8)] mb-2">
+      <div className="text-center py-10 rounded-[28px] bg-[#FFF7E6] p-9 max-w-[480px] mx-auto">
+        <p className="text-[15px] text-[#1B1730] mb-2">
           You already paid for a chart that didn&apos;t finish generating.
         </p>
-        <p className="text-[13px] text-[rgba(255,247,230,.5)] mb-7">
+        <p className="text-[13px] text-[#5B5570] mb-7">
           {pending.birth.name} · {pending.birth.birth_date}
         </p>
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={handleResume}
@@ -153,12 +153,70 @@ export default function KundaliApp() {
           <button
             type="button"
             onClick={() => setStatus("form")}
-            className="h-12 px-6 rounded-[100px] text-[14px] font-medium text-[rgba(255,247,230,.7)] border border-[rgba(255,247,230,.2)]"
+            className="h-12 px-6 rounded-[100px] text-[14px] font-medium text-[#5B5570] border border-[#1B1730]/14"
           >
             Start a new chart
           </button>
         </div>
       </div>
+    );
+  }
+
+  if (status === "summary" && result) {
+    const a = result.chart.avakhada;
+    const facts: [string, string][] = [
+      ["Lagna", result.chart.lagna.sign],
+      ["Moon Sign", a.moon_sign],
+      ["Nakshatra", a.nakshatra],
+      ["Mahadasha", result.chart.vimshottari.current.mahadasha ?? "—"],
+    ];
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="rounded-[28px] bg-[#FFF7E6] p-8 sm:p-10 max-w-[480px] mx-auto text-center"
+      >
+        <div className="w-14 h-14 rounded-full mx-auto mb-4 flex items-center justify-center text-[20px] font-semibold text-white bg-[linear-gradient(135deg,#8F29DD,#A72BE6)]">
+          {result.name.charAt(0).toUpperCase()}
+        </div>
+        <h1 className="font-[family-name:var(--font-display)] text-[22px] font-medium text-[#1B1730]">
+          {result.name}&apos;s Kundli
+        </h1>
+        <p className="text-[13px] text-[#5B5570] mb-6">
+          {result.birth_date} · {result.birth_place}
+        </p>
+
+        <div className="grid grid-cols-2 gap-2.5 mb-8">
+          {facts.map(([label, value]) => (
+            <div key={label} className="rounded-[12px] bg-[#8F29DD]/[.05] border border-[#8F29DD]/12 px-3 py-2.5">
+              <div className="text-[10.5px] text-[#5B5570]">{label}</div>
+              <div className="text-[13px] font-semibold text-[#1B1730] mt-0.5">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setStatus("result")}
+            className="h-12 rounded-[100px] font-semibold text-[14.5px] text-[#241505] bg-[linear-gradient(180deg,#F7DDA2,#E9BE6C)]"
+          >
+            View Full Chart
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setResult(null);
+              setError(null);
+              setStatus("form");
+            }}
+            className="h-12 rounded-[100px] font-semibold text-[13.5px] text-[#8F29DD] border border-[#8F29DD]/25"
+          >
+            Generate New Chart
+          </button>
+        </div>
+      </motion.div>
     );
   }
 
@@ -197,6 +255,13 @@ export default function KundaliApp() {
       >
         <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
           <div>
+            <button
+              type="button"
+              onClick={() => setStatus("summary")}
+              className="text-[12.5px] text-[#8F29DD] hover:text-[#7420c4] mb-1.5"
+            >
+              ← Back
+            </button>
             <h1 className="font-[family-name:var(--font-display)] text-[24px] font-medium text-[#1B1730]">
               {result.name}&apos;s Kundli
             </h1>

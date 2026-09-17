@@ -191,14 +191,16 @@ export default function Services() {
                   {tool.title}
                 </h3>
 
-                <span
-                  className="text-[12px] font-semibold px-3 py-1 rounded-full whitespace-nowrap text-white"
-                  style={{
-                    background: `linear-gradient(90deg, ${tool.accent}, ${tool.accent2})`,
-                  }}
-                >
-                  {tool.price}
-                </span>
+                {!isLive && (
+                  <span
+                    className="text-[12px] font-semibold px-3 py-1 rounded-full whitespace-nowrap text-white"
+                    style={{
+                      background: `linear-gradient(90deg, ${tool.accent}, ${tool.accent2})`,
+                    }}
+                  >
+                    {tool.price}
+                  </span>
+                )}
 
                 <p className="text-[13.5px] leading-[1.6] text-[#5B5570] flex-1">
                   {tool.desc}
