@@ -1,4 +1,4 @@
-import type { House } from "@/lib/kundali";
+import type { House, Planet } from "@/lib/kundali";
 
 // Classic North Indian (diamond) Kundli chart, drawn as plain SVG in a
 // 400x400 box: outer square + both diagonals + the midpoint-diamond together
@@ -18,96 +18,109 @@ const CORNER: Record<"tl" | "tr" | "br" | "bl", Point> = {
   tl: [0, 0], tr: [400, 0], br: [400, 400], bl: [0, 400],
 };
 
-const HOUSE_SHAPES: { points: [number, number][]; label: [number, number] }[] = [
-  // 1 — top kite
-  { points: [M.top, X.tr, [C.x, C.y], X.tl], label: [200, 55] },
-  // 2
-  { points: [CORNER.tr, M.top, X.tr], label: [265, 35] },
-  // 3
-  { points: [CORNER.tr, X.tr, M.right], label: [340, 100] },
-  // 4 — right kite
-  { points: [M.right, X.br, [C.x, C.y], X.tr], label: [345, 200] },
-  // 5
-  { points: [CORNER.br, M.right, X.br], label: [340, 300] },
-  // 6
-  { points: [CORNER.br, X.br, M.bottom], label: [265, 365] },
-  // 7 — bottom kite
-  { points: [M.bottom, X.br, [C.x, C.y], X.bl], label: [200, 345] },
-  // 8
-  { points: [CORNER.bl, M.bottom, X.bl], label: [135, 365] },
-  // 9
-  { points: [CORNER.bl, X.bl, M.left], label: [60, 300] },
-  // 10 — left kite
-  { points: [M.left, X.bl, [C.x, C.y], X.tl], label: [55, 200] },
-  // 11
-  { points: [CORNER.tl, X.tl, M.left], label: [60, 100] },
-  // 12
-  { points: [CORNER.tl, M.top, X.tl], label: [135, 35] },
+const HOUSE_SHAPES: { points: Point[]; label: Point; rashiAnchor: Point }[] = [
+  { points: [M.top, X.tr, [C.x, C.y], X.tl], label: [200, 60], rashiAnchor: [200, 22] },
+  { points: [CORNER.tr, M.top, X.tr], label: [275, 30], rashiAnchor: [355, 16] },
+  { points: [CORNER.tr, X.tr, M.right], label: [352, 105], rashiAnchor: [355, 30] },
+  { points: [M.right, X.br, [C.x, C.y], X.tr], label: [340, 200], rashiAnchor: [378, 200] },
+  { points: [CORNER.br, M.right, X.br], label: [352, 295], rashiAnchor: [355, 370] },
+  { points: [CORNER.br, X.br, M.bottom], label: [275, 370], rashiAnchor: [355, 384] },
+  { points: [M.bottom, X.br, [C.x, C.y], X.bl], label: [200, 340], rashiAnchor: [200, 378] },
+  { points: [CORNER.bl, M.bottom, X.bl], label: [125, 370], rashiAnchor: [45, 384] },
+  { points: [CORNER.bl, X.bl, M.left], label: [48, 295], rashiAnchor: [45, 370] },
+  { points: [M.left, X.bl, [C.x, C.y], X.tl], label: [60, 200], rashiAnchor: [22, 200] },
+  { points: [CORNER.tl, X.tl, M.left], label: [48, 105], rashiAnchor: [45, 30] },
+  { points: [CORNER.tl, M.top, X.tl], label: [125, 30], rashiAnchor: [45, 16] },
 ];
 
-const ABBR: Record<string, string> = {
-  Sun: "Su", Moon: "Mo", Mars: "Ma", Mercury: "Me", Jupiter: "Ju",
-  Venus: "Ve", Saturn: "Sa", Rahu: "Ra", Ketu: "Ke",
+const GLYPH: Record<string, string> = {
+  Sun: "☉", Moon: "☽", Mars: "♂", Mercury: "☿", Jupiter: "♃",
+  Venus: "♀", Saturn: "♄", Rahu: "☊", Ketu: "☋",
 };
 
-export default function NorthIndianChart({ houses }: { houses: House[] }) {
+const CORNER_ORNAMENT: Point[] = [[10, 10], [390, 10], [390, 390], [10, 390]];
+
+export default function NorthIndianChart({
+  houses,
+  planets,
+}: {
+  houses: House[];
+  planets?: Planet[];
+}) {
   const byNumber = new Map(houses.map((h) => [h.house, h]));
+  const retro = new Set((planets ?? []).filter((p) => p.retrograde).map((p) => p.name));
 
   return (
-    <svg viewBox="0 0 400 400" className="w-full max-w-[380px] mx-auto" role="img" aria-label="North Indian birth chart">
-      <rect x="1" y="1" width="398" height="398" fill="#FFF7E6" stroke="#C18426" strokeWidth="2" />
+    <svg
+      viewBox="0 0 400 400"
+      className="w-full max-w-[380px] mx-auto"
+      role="img"
+      aria-label="North Indian birth chart"
+    >
+      <defs>
+        <radialGradient id="chartBg" cx="50%" cy="42%" r="70%">
+          <stop offset="0%" stopColor="#FFFDF8" />
+          <stop offset="100%" stopColor="#FBEFD4" />
+        </radialGradient>
+      </defs>
+
+      <rect x="6" y="6" width="388" height="388" rx="6" fill="url(#chartBg)" stroke="#C18426" strokeWidth="2.5" />
+      <rect x="12" y="12" width="376" height="376" rx="3" fill="none" stroke="#C18426" strokeOpacity="0.35" strokeWidth="1" />
       <path
-        d="M200,0 L400,200 L200,400 L0,200 Z M0,0 L400,400 M400,0 L0,400"
+        d="M200,6 L394,200 L200,394 L6,200 Z M6,6 L394,394 M394,6 L6,394"
         fill="none"
         stroke="#C18426"
-        strokeWidth="1.4"
+        strokeWidth="1.3"
       />
+
+      {CORNER_ORNAMENT.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="3" fill="#C18426" fillOpacity="0.55" />
+      ))}
+
+      {/* Ascendant marker above house 1 */}
+      <path d="M188,14 L200,2 L212,14 Z" fill="#8F29DD" />
+
       {HOUSE_SHAPES.map((shape, i) => {
         const houseNo = i + 1;
         const house = byNumber.get(houseNo);
-        const planets = (house?.planets ?? []).map((p) => ABBR[p] ?? p.slice(0, 2));
         const isLagna = houseNo === 1;
+        const rashiNo = house ? house.sign_index + 1 : null;
+        const planetNames = house?.planets ?? [];
+
         return (
           <g key={houseNo}>
             {isLagna && (
-              <polygon
-                points={shape.points.map((p) => p.join(",")).join(" ")}
-                fill="#8F29DD14"
-              />
+              <polygon points={shape.points.map((p) => p.join(",")).join(" ")} fill="#8F29DD12" />
             )}
-            <text
-              x={shape.label[0]}
-              y={shape.label[1] - 10}
-              textAnchor="middle"
-              fontSize="9"
-              fill="#B08F3D"
-              fontFamily="var(--font-body)"
-            >
-              {houseNo}
-            </text>
-            {house?.sign && (
+            {rashiNo && (
+              <text
+                x={shape.rashiAnchor[0]}
+                y={shape.rashiAnchor[1]}
+                textAnchor="middle"
+                fontSize="10"
+                fontWeight={600}
+                fill="#B08F3D"
+                fontFamily="var(--font-body)"
+              >
+                {rashiNo}
+              </text>
+            )}
+            {planetNames.length > 0 && (
               <text
                 x={shape.label[0]}
                 y={shape.label[1]}
                 textAnchor="middle"
-                fontSize="8.5"
-                fill="#8A6D3B"
-                fontFamily="var(--font-body)"
-              >
-                {house.sign.slice(0, 3)}
-              </text>
-            )}
-            {planets.length > 0 && (
-              <text
-                x={shape.label[0]}
-                y={shape.label[1] + 13}
-                textAnchor="middle"
-                fontSize="10.5"
+                fontSize="13"
                 fontWeight={600}
                 fill="#1B1730"
                 fontFamily="var(--font-body)"
               >
-                {planets.join(" ")}
+                {planetNames.map((name, idx) => (
+                  <tspan key={name} dx={idx === 0 ? 0 : 6}>
+                    {GLYPH[name] ?? name.slice(0, 2)}
+                    {retro.has(name) ? "℞" : ""}
+                  </tspan>
+                ))}
               </text>
             )}
           </g>

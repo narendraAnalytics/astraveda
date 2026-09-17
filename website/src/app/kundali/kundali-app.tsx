@@ -192,9 +192,9 @@ export default function KundaliApp() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="rounded-[28px] bg-[#FFF7E6] p-6 sm:p-9 max-w-[720px] mx-auto"
+        className="rounded-[28px] bg-[#FFF7E6] p-6 sm:p-9 max-w-[980px] mx-auto"
       >
-        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
           <div>
             <h1 className="font-[family-name:var(--font-display)] text-[24px] font-medium text-[#1B1730]">
               {result.name}&apos;s Kundli
@@ -216,41 +216,62 @@ export default function KundaliApp() {
           </button>
         </div>
 
-        <section className="mb-8">
-          <h2 className="text-[14px] font-semibold text-[#1B1730] mb-3">Avakhada</h2>
+        <section className="mb-9">
+          <SectionHeading>Avakhada</SectionHeading>
           <AvakhadaGrid chart={result.chart} />
         </section>
 
-        <section className="mb-8">
-          <h2 className="text-[14px] font-semibold text-[#1B1730] mb-3">Birth Chart (D1)</h2>
-          <NorthIndianChart houses={result.chart.houses} />
-        </section>
+        <div className="grid lg:grid-cols-[380px_1fr] gap-8 lg:gap-10 mb-9 items-start">
+          <section className="lg:sticky lg:top-28">
+            <SectionHeading>Birth Chart (D1)</SectionHeading>
+            <NorthIndianChart houses={result.chart.houses} planets={result.chart.planets} />
+          </section>
 
-        <section className="mb-8">
-          <h2 className="text-[14px] font-semibold text-[#1B1730] mb-3">Vimshottari Dasha</h2>
-          <DashaTimeline chart={result.chart} />
-        </section>
+          <section>
+            <h2 className="font-[family-name:var(--font-display)] text-[22px] font-medium mb-4 bg-clip-text text-transparent bg-[linear-gradient(90deg,#8F29DD,#D0447E,#C18426)]">
+              Your Reading
+            </h2>
+            {result.reading_en ? (
+              <div className="rounded-[20px] bg-[linear-gradient(165deg,#FFFDF8,#FBF2E0)] border border-[#C18426]/20 p-6 sm:p-7">
+                <p className="text-[14.5px] leading-[1.85] text-[#3A2E52] whitespace-pre-line">
+                  {result.reading_en}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-[#C18426]/30 p-7 flex flex-col items-start gap-3.5">
+                <p className="text-[13.5px] text-[#5B5570]">
+                  A natural-language reading of this chart, written by AI from the
+                  computed facts above.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleGetReading}
+                  disabled={readingLoading}
+                  className="h-11 px-6 rounded-[100px] font-semibold text-[13.5px] text-white bg-[#8F29DD] disabled:opacity-60"
+                >
+                  {readingLoading ? "Writing your reading…" : "Get AI Reading"}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
 
         <section>
-          <h2 className="text-[14px] font-semibold text-[#1B1730] mb-3">Reading</h2>
-          {result.reading_en ? (
-            <p className="text-[14px] leading-[1.7] text-[#3A3450] whitespace-pre-line">
-              {result.reading_en}
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={handleGetReading}
-              disabled={readingLoading}
-              className="h-11 px-6 rounded-[100px] font-semibold text-[13.5px] text-white bg-[#8F29DD] disabled:opacity-60"
-            >
-              {readingLoading ? "Writing your reading…" : "Get AI Reading"}
-            </button>
-          )}
+          <SectionHeading>Vimshottari Dasha</SectionHeading>
+          <DashaTimeline chart={result.chart} />
         </section>
       </motion.div>
     );
   }
 
   return null;
+}
+
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2.5 text-[14px] font-semibold text-[#1B1730] mb-4">
+      <span className="w-6 h-px bg-[linear-gradient(90deg,#C18426,transparent)]" />
+      {children}
+    </h2>
+  );
 }

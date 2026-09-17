@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PlaceAutocomplete from "./PlaceAutocomplete";
 import { RELATIONS, type GenerateBody, type Place, type Relation } from "@/lib/kundali";
 
@@ -24,6 +24,11 @@ export default function BirthForm({
   const [birthTime, setBirthTime] = useState("");
   const [unknownTime, setUnknownTime] = useState(false);
   const [place, setPlace] = useState<Place | null>(null);
+  // Computed post-mount only — computing "today" during render would give the
+  // server and the client's hydration pass two different instants, which
+  // React flags as a hydration mismatch on the `max` attribute below.
+  const [maxDate, setMaxDate] = useState<string | undefined>(undefined);
+  useEffect(() => setMaxDate(new Date().toISOString().slice(0, 10)), []);
 
   const canContinue =
     (step === 0 && name.trim().length > 0) ||
@@ -111,7 +116,7 @@ export default function BirthForm({
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              max={new Date().toISOString().slice(0, 10)}
+              max={maxDate}
               className="w-full h-12 rounded-[12px] border border-[#1B1730]/14 bg-white px-4 text-[15px] text-[#1B1730] focus:border-[#8F29DD] focus:outline-none focus:ring-2 focus:ring-[#8F29DD]/15"
             />
           </div>
