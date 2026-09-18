@@ -5,11 +5,22 @@ import Reveal from "./Reveal";
 import AuthAwareLink from "./auth/AuthAwareLink";
 import { TOOL_IMAGES } from "@/lib/site";
 
-const TOOLS = [
+type Tool = {
+  image: string;
+  title: string;
+  price: string;
+  href?: string;
+  desc: string;
+  accent: string;
+  accent2: string;
+};
+
+const TOOLS: Tool[] = [
   {
     image: TOOL_IMAGES.kundli,
     title: "My Kundli",
     price: "₹15",
+    href: "/kundali",
     desc: "Self-hosted Vimshottari Dasha birth chart with 16 divisional views, computed with Swiss Ephemeris.",
     accent: "#8F29DD",
     accent2: "#A72BE6",
@@ -18,6 +29,7 @@ const TOOLS = [
     image: TOOL_IMAGES.palm,
     title: "Palm Reading",
     price: "₹40",
+    href: "/palm",
     desc: "Hasta Samudrika insights from a live camera scan or a guided 4-step questionnaire.",
     accent: "#D0447E",
     accent2: "#F0629A",
@@ -74,6 +86,7 @@ const TOOLS = [
 
 function CardShell({
   interactive,
+  href,
   className,
   style,
   onMouseEnter,
@@ -81,17 +94,18 @@ function CardShell({
   children,
 }: {
   interactive: boolean;
+  href?: string;
   className: string;
   style: React.CSSProperties;
   onMouseEnter: React.MouseEventHandler<HTMLElement>;
   onMouseLeave: React.MouseEventHandler<HTMLElement>;
   children: React.ReactNode;
 }) {
-  if (interactive) {
+  if (interactive && href) {
     return (
       <AuthAwareLink
         signedOutHref="/sign-in"
-        signedInHref="/kundali"
+        signedInHref={href}
         className={className}
         style={style}
         onMouseEnter={onMouseEnter}
@@ -146,11 +160,12 @@ export default function Services() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14 pt-9">
           {TOOLS.map((tool, i) => {
-            const isLive = tool.title === "My Kundli";
+            const isLive = !!tool.href;
             return (
             <Reveal key={tool.title} delay={i * 0.06} y={22} className="h-full">
               <CardShell
                 interactive={isLive}
+                href={tool.href}
                 className={`group relative h-full flex flex-col items-center gap-3 text-center pt-14 pb-6 px-5 rounded-[26px] transition-all duration-300 ease-out hover:-translate-y-2${isLive ? " cursor-pointer" : ""}`}
                 style={{
                   background: `linear-gradient(165deg, ${tool.accent}1F 0%, ${tool.accent2}10 45%, #FFFFFF 100%)`,

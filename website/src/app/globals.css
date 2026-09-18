@@ -70,6 +70,20 @@ a:focus-visible,
   border-radius: 8px;
 }
 
+/* Chrome renders native <button>s with the plain arrow cursor, not a hand,
+   unlike <a> which always got the pointer — no component in this codebase set
+   cursor-pointer per button, so most CTAs (Palm's choice cards, PayMethodSheet
+   rows, etc.) gave no hover feedback that they were clickable. Fixed once,
+   site-wide, same as the focus-ring fix above. Disabled buttons keep the
+   not-allowed cursor instead. */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
 /* Chrome/Edge autofill forces its own blue text + pale-blue/yellow fill via an
    internal UA style that normal background/color rules can't override — only
    this shadow + a huge transition-delay trick can. Keeps autofilled inputs

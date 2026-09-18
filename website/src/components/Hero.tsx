@@ -279,7 +279,7 @@ export default function Hero() {
           <div className="av-cta-row flex items-center gap-4 flex-wrap">
             <AuthAwareLink
               signedOutHref="/sign-in"
-              signedInHref="/kundali"
+              signedInHref="/readings"
               className="inline-flex items-center gap-[10px] px-[30px] py-4 rounded-[100px] font-semibold text-[15.5px] text-[#241505] shadow-[0_8px_28px_rgba(244,210,138,.4)]"
               style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
             >
