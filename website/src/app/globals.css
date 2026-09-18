@@ -52,3 +52,32 @@ body {
     opacity: 0.9;
   }
 }
+
+/* Chrome/Edge's default focus ring on buttons/links is blue — no component in
+   this codebase sets its own focus-visible style, so every button flashes
+   stock browser blue on click/tab. Swap it for a brand-purple ring, once,
+   site-wide, instead of hand-styling every button. */
+button:focus,
+a:focus,
+[role="button"]:focus {
+  outline: none;
+}
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgba(143, 41, 221, 0.45);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Chrome/Edge autofill forces its own blue text + pale-blue/yellow fill via an
+   internal UA style that normal background/color rules can't override — only
+   this shadow + a huge transition-delay trick can. Keeps autofilled inputs
+   (birthplace, date pickers, etc.) on our own cream/ink palette. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #1b1730;
+  box-shadow: 0 0 0px 1000px #fff inset;
+  transition: background-color 9999s ease-in-out 0s;
+}

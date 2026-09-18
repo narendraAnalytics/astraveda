@@ -50,7 +50,7 @@ export default function ZodiacLoader({ label }: { label: string }) {
             </span>
           ))}
         </motion.div>
-        <div className="absolute inset-0 flex items-center justify-center text-[24px] text-[#8F29DD]">
+        <div className="absolute inset-0 flex items-center justify-center text-[24px] text-[#D6336C]">
           ✦
         </div>
       </div>

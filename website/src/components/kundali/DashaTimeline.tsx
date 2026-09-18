@@ -7,12 +7,12 @@ import type { Chart, DashaPeriod } from "@/lib/kundali";
 // matter rather than an arbitrary categorical scheme.
 const PLANET_COLOR: Record<string, string> = {
   Sun: "#E9A23B",
-  Moon: "#9AC7E0",
+  Moon: "#E8A9C0",
   Mars: "#D0473E",
   Mercury: "#4FAE7A",
   Jupiter: "#D9A62E",
   Venus: "#E37FB0",
-  Saturn: "#5B6B8C",
+  Saturn: "#6E5A72",
   Rahu: "#7C5CBF",
   Ketu: "#8C5A3C",
 };
@@ -74,7 +74,7 @@ export default function DashaTimeline({ chart }: { chart: Chart }) {
           {segments.map((p) => (
             <div
               key={`${p.lord}-${p.start}`}
-              style={{ width: `${p.widthPct}%`, background: PLANET_COLOR[p.lord] ?? "#8F29DD" }}
+              style={{ width: `${p.widthPct}%`, background: PLANET_COLOR[p.lord] ?? "#D6336C" }}
               className={p.lord === current.mahadasha ? "opacity-100" : "opacity-55"}
               title={`${p.lord} · ${fmt(p.start)} – ${fmt(p.end)}`}
             />
@@ -92,7 +92,7 @@ export default function DashaTimeline({ chart }: { chart: Chart }) {
           <span key={p.lord} className="inline-flex items-center gap-1.5 text-[11px] text-[#5B5570]">
             <span
               className="w-2 h-2 rounded-full"
-              style={{ background: PLANET_COLOR[p.lord] ?? "#8F29DD" }}
+              style={{ background: PLANET_COLOR[p.lord] ?? "#D6336C" }}
             />
             {p.lord}
           </span>
@@ -100,14 +100,14 @@ export default function DashaTimeline({ chart }: { chart: Chart }) {
       </div>
 
       {/* Current period spotlight */}
-      <div className="rounded-[18px] bg-[linear-gradient(135deg,#8F29DD0F,#E9BE6C10)] border border-[#8F29DD]/15 p-5 mb-6">
+      <div className="rounded-[18px] bg-[linear-gradient(135deg,#D6336C0F,#FF5C8A10)] border border-[#D6336C]/18 p-5 mb-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <div className="text-[11px] text-[#5B5570] mb-1">Currently running</div>
             <div className="text-[19px] font-semibold text-[#1B1730]">
               {current.mahadasha ?? "—"} Mahadasha
               {current.antardasha ? (
-                <span className="text-[#8F29DD]"> / {current.antardasha}</span>
+                <span className="text-[#D6336C]"> / {current.antardasha}</span>
               ) : null}
             </div>
             {currentMaha && (
@@ -119,13 +119,13 @@ export default function DashaTimeline({ chart }: { chart: Chart }) {
           {currentMaha && (
             <div className="relative w-16 h-16 shrink-0">
               <svg viewBox="0 0 64 64" className="w-16 h-16 -rotate-90">
-                <circle cx="32" cy="32" r="27" fill="none" stroke="#8F29DD1A" strokeWidth="6" />
+                <circle cx="32" cy="32" r="27" fill="none" stroke="#D6336C1A" strokeWidth="6" />
                 <circle
                   cx="32"
                   cy="32"
                   r="27"
                   fill="none"
-                  stroke={PLANET_COLOR[current.mahadasha ?? ""] ?? "#8F29DD"}
+                  stroke={PLANET_COLOR[current.mahadasha ?? ""] ?? "#D6336C"}
                   strokeWidth="6"
                   strokeLinecap="round"
                   strokeDasharray={`${(currentPct / 100) * 2 * Math.PI * 27} ${2 * Math.PI * 27}`}
@@ -153,14 +153,14 @@ export default function DashaTimeline({ chart }: { chart: Chart }) {
                   key={`${p.lord}-${p.start}`}
                   className={`rounded-[12px] px-3 py-2.5 text-[12.5px] ${
                     isCurrent
-                      ? "bg-[#8F29DD] text-white font-semibold"
+                      ? "bg-[linear-gradient(135deg,#D6336C,#FF5C8A)] text-white font-semibold"
                       : "bg-white border border-[#1B1730]/8 text-[#5B5570]"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-0.5">
                     <span
                       className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: isCurrent ? "#fff" : PLANET_COLOR[p.lord] ?? "#8F29DD" }}
+                      style={{ background: isCurrent ? "#fff" : PLANET_COLOR[p.lord] ?? "#D6336C" }}
                     />
                     {p.lord}
                   </div>

@@ -35,7 +35,7 @@ export default function ReadingView({ text }: { text: string }) {
       {sections.map((s, i) => (
         <div key={i}>
           {s.heading && (
-            <h3 className="font-[family-name:var(--font-display)] text-[17px] font-medium mb-2 bg-clip-text text-transparent bg-[linear-gradient(90deg,#8F29DD,#C1653D,#C18426)]">
+            <h3 className="font-[family-name:var(--font-display)] text-[17px] font-medium mb-2 bg-clip-text text-transparent bg-[linear-gradient(90deg,#D6336C,#FF5C8A)]">
               {s.heading}
             </h3>
           )}
@@ -43,7 +43,7 @@ export default function ReadingView({ text }: { text: string }) {
             {s.body}
           </p>
           {i < sections.length - 1 && (
-            <div className="mt-6 h-px bg-[linear-gradient(90deg,transparent,#C18426,transparent)] opacity-40" />
+            <div className="mt-6 h-px bg-[linear-gradient(90deg,transparent,#D6336C,transparent)] opacity-40" />
           )}
         </div>
       ))}

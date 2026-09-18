@@ -169,3 +169,32 @@ export function getKundaliReading(id: string, token: string | null) {
     token,
   });
 }
+
+// Lightweight row for the "Your Charts" gallery — no full chart payload.
+export type KundaliSummary = {
+  id: string;
+  name: string;
+  relation: Relation | null;
+  birth_date: string;
+  birth_time: string;
+  unknown_time: boolean;
+  birth_place: string;
+  lagna: string | null;
+  moon_sign: string | null;
+  nakshatra: string | null;
+  current_mahadasha: string | null;
+  has_reading: boolean;
+  created_at: string;
+};
+
+export function listKundalis(token: string | null) {
+  return api<KundaliSummary[]>("/kundali/list", { token });
+}
+
+export function getKundali(id: string, token: string | null) {
+  return api<Kundali>(`/kundali/${id}`, { token });
+}
+
+export function deleteKundali(id: string, token: string | null) {
+  return api<{ deleted: boolean }>(`/kundali/${id}`, { method: "DELETE", token });
+}

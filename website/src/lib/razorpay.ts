@@ -62,7 +62,7 @@ export async function openRazorpayCheckout(opts: {
     currency: "INR",
     name: "AstraVeda",
     description: opts.description,
-    theme: { color: "#8F29DD" },
+    theme: { color: "#D6336C" },
     handler: opts.onSuccess,
     modal: { ondismiss: opts.onDismiss },
   });

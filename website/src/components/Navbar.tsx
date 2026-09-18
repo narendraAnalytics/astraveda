@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { Show, UserButton, useUser } from "@clerk/nextjs";
 import { LOGO_URL, NAV_LINKS } from "@/lib/site";
+import { useWallet } from "@/hooks/use-wallet";
+import { rupees } from "@/lib/wallet";
 
 const NAV_TRIGGER = 96;
 
 export default function Navbar() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const displayName = user?.firstName ?? user?.username ?? null;
+  const { wallet } = useWallet(!!isSignedIn);
 
   useEffect(() => {
     const sections = Array.from(
@@ -111,6 +114,13 @@ export default function Navbar() {
             </a>
           </Show>
           <Show when="signed-in">
+            <a
+              href="/wallet"
+              className="flex items-center gap-1.5 px-3 py-[7px] rounded-[100px] text-[12.5px] font-semibold whitespace-nowrap text-white bg-[linear-gradient(135deg,#C18426,#E9BE6C)] hover:brightness-105 transition-[filter]"
+            >
+              <span>👛</span>
+              {wallet ? rupees(wallet.balance_paise) : "Wallet"}
+            </a>
             {displayName && (
               <a
                 href="/account"

@@ -18,7 +18,7 @@ export default function AvakhadaGrid({ chart }: { chart: Chart }) {
       {rows.map(([label, value]) => (
         <div
           key={label}
-          className="rounded-[14px] border border-[#8F29DD]/15 bg-[#8F29DD]/[.04] px-3.5 py-3"
+          className="rounded-[14px] border border-[#D6336C]/18 bg-[#D6336C]/[.04] px-3.5 py-3"
         >
           <div className="text-[11px] text-[#5B5570]">{label}</div>
           <div className="text-[13.5px] font-semibold text-[#1B1730] mt-0.5">{value}</div>

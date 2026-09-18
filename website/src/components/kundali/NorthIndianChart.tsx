@@ -78,7 +78,7 @@ export default function NorthIndianChart({
       ))}
 
       {/* Ascendant marker above house 1 */}
-      <path d="M188,14 L200,2 L212,14 Z" fill="#8F29DD" />
+      <path d="M188,14 L200,2 L212,14 Z" fill="#D6336C" />
 
       {HOUSE_SHAPES.map((shape, i) => {
         const houseNo = i + 1;
@@ -90,7 +90,7 @@ export default function NorthIndianChart({
         return (
           <g key={houseNo}>
             {isLagna && (
-              <polygon points={shape.points.map((p) => p.join(",")).join(" ")} fill="#8F29DD12" />
+              <polygon points={shape.points.map((p) => p.join(",")).join(" ")} fill="#D6336C12" />
             )}
             {rashiNo && (
               <text
