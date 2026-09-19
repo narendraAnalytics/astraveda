@@ -33,6 +33,7 @@ CLAUDE.md
 AGENTS.md
 
 # Project source-of-truth docs (kept local only, not published)
+*.txt
 /finalview.txt
 /roadmap.txt
 /imagesurl.txt

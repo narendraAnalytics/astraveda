@@ -38,6 +38,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.face,
     title: "Face Reading",
     price: "₹45",
+    href: "/face",
     desc: "Mukha Samudrika personality insights from a selfie, read by AI vision.",
     accent: "#2FA7A0",
     accent2: "#4FD3C4",
