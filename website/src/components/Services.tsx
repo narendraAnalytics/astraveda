@@ -47,6 +47,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.aura,
     title: "Aura Scan",
     price: "₹60",
+    href: "/aura",
     desc: "A selfie and a short energy quiz reveal your aura's colour palette and a 7-chakra reading.",
     accent: "#8B5CF6",
     accent2: "#B79CFF",

@@ -4,18 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Star, Hand, Smile, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
+import { Star, Hand, Smile, Sparkles, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
 
 import { deleteKundali, listKundalis, type KundaliSummary } from "@/lib/kundali";
 import { deletePalm, listPalms, type PalmSummary } from "@/lib/palm";
 import { deleteFace, listFaces, type FaceSummary } from "@/lib/face";
+import { deleteAura, listAuras, AURA_HEX, type AuraSummary } from "@/lib/aura";
 import { ApiError } from "@/lib/api";
 
 // One hub for every saved reading — mirrors the mobile app's astrology tab
-// (a "Charts | Palms | Faces" segmented control over the same lists). Reached
-// from the Hero's "Explore Your Horoscope" CTA once signed in, instead of
-// dropping straight into a new Kundli.
-type Tab = "charts" | "palms" | "faces";
+// (a "Charts | Palms | Faces | Auras" segmented control over the same
+// lists). Reached from the Hero's "Explore Your Horoscope" CTA once signed
+// in, instead of dropping straight into a new Kundli.
+type Tab = "charts" | "palms" | "faces" | "auras";
 
 const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon: typeof Star; newLabel: string; href: string }> = {
   charts: {
@@ -42,6 +43,14 @@ const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon
     newLabel: "New reading",
     href: "/face",
   },
+  auras: {
+    gradient: "linear-gradient(135deg,#3b1d63,#7c3aed,#c026d3)",
+    title: "Your Aura Scans",
+    sub: "Aura colour and chakra readings for you and your family.",
+    icon: Sparkles,
+    newLabel: "New scan",
+    href: "/aura",
+  },
 };
 
 const prettyDate = (iso: string) =>
@@ -55,6 +64,7 @@ export default function ReadingsHub() {
   const [charts, setCharts] = useState<KundaliSummary[]>([]);
   const [palms, setPalms] = useState<PalmSummary[]>([]);
   const [faces, setFaces] = useState<FaceSummary[]>([]);
+  const [auras, setAuras] = useState<AuraSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -62,10 +72,16 @@ export default function ReadingsHub() {
   const load = useCallback(async () => {
     const token = await getToken();
     try {
-      const [c, p, f] = await Promise.all([listKundalis(token), listPalms(token), listFaces(token)]);
+      const [c, p, f, a] = await Promise.all([
+        listKundalis(token),
+        listPalms(token),
+        listFaces(token),
+        listAuras(token),
+      ]);
       setCharts(c);
       setPalms(p);
       setFaces(f);
+      setAuras(a);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your readings.");
@@ -131,6 +147,23 @@ export default function ReadingsHub() {
     [getToken],
   );
 
+  const handleDeleteAura = useCallback(
+    async (a: AuraSummary) => {
+      if (!window.confirm(`Remove ${a.name}'s aura scan? This can't be undone.`)) return;
+      setDeletingId(a.id);
+      const token = await getToken();
+      try {
+        await deleteAura(a.id, token);
+        setAuras((prev) => prev.filter((x) => x.id !== a.id));
+      } catch {
+        setError("Couldn't delete that scan. Please try again.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [getToken],
+  );
+
   const meta = TAB_META[tab];
   const Icon = meta.icon;
 
@@ -151,11 +184,11 @@ export default function ReadingsHub() {
       <div
         className="relative z-10 mx-2 sm:mx-4 flex gap-1.5 p-1.5 rounded-[16px] border shadow-[0_10px_26px_rgba(27,23,48,.08)]"
         style={{
-          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12)`,
+          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12, ${CARD_ACCENT.auras[0]}12)`,
           borderColor: `${CARD_ACCENT[tab][0]}28`,
         }}
       >
-        {(["charts", "palms", "faces"] as Tab[]).map((t) => {
+        {(["charts", "palms", "faces", "auras"] as Tab[]).map((t) => {
           const on = tab === t;
           const [a, a2] = CARD_ACCENT[t];
           const TIcon = TAB_META[t].icon;
@@ -172,7 +205,7 @@ export default function ReadingsHub() {
               }
             >
               <TIcon size={14} />
-              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : "Faces"}
+              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : t === "faces" ? "Faces" : "Auras"}
             </button>
           );
         })}
@@ -247,23 +280,45 @@ export default function ReadingsHub() {
                     ))}
                   </div>
                 )
-              ) : faces.length === 0 ? (
+              ) : tab === "faces" ? (
+                faces.length === 0 ? (
+                  <EmptyState
+                    icon={Icon}
+                    accent={CARD_ACCENT.faces}
+                    title="No face readings yet"
+                    body="Scan your face or answer a few questions — it's saved here for you to revisit any time."
+                  />
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {faces.map((f, i) => (
+                      <FaceCard
+                        key={f.id}
+                        item={f}
+                        index={i}
+                        deleting={deletingId === f.id}
+                        onOpen={() => router.push(`/face?id=${f.id}`)}
+                        onDelete={() => handleDeleteFace(f)}
+                      />
+                    ))}
+                  </div>
+                )
+              ) : auras.length === 0 ? (
                 <EmptyState
                   icon={Icon}
-                  accent={CARD_ACCENT.faces}
-                  title="No face readings yet"
-                  body="Scan your face or answer a few questions — it's saved here for you to revisit any time."
+                  accent={CARD_ACCENT.auras}
+                  title="No aura scans yet"
+                  body="Scan your aura — it's saved here for you to revisit any time."
                 />
               ) : (
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {faces.map((f, i) => (
-                    <FaceCard
-                      key={f.id}
-                      item={f}
+                  {auras.map((a, i) => (
+                    <AuraCard
+                      key={a.id}
+                      item={a}
                       index={i}
-                      deleting={deletingId === f.id}
-                      onOpen={() => router.push(`/face?id=${f.id}`)}
-                      onDelete={() => handleDeleteFace(f)}
+                      deleting={deletingId === a.id}
+                      onOpen={() => router.push(`/aura?id=${a.id}`)}
+                      onDelete={() => handleDeleteAura(a)}
                     />
                   ))}
                 </div>
@@ -284,6 +339,7 @@ const CARD_ACCENT: Record<Tab, [string, string]> = {
   charts: ["#8F29DD", "#A72BE6"],
   palms: ["#C0356F", "#E2745A"],
   faces: ["#0f8a7e", "#3fa66b"],
+  auras: ["#7c3aed", "#c026d3"],
 };
 
 function EmptyState({
@@ -574,6 +630,57 @@ function FaceCard({
               value={item.face_shape === "Unknown" ? "Not recorded" : item.face_shape}
               accent={accent}
             />
+          </div>
+        </button>
+      </CardShell>
+    </motion.div>
+  );
+}
+
+function AuraCard({
+  item,
+  index,
+  deleting,
+  onOpen,
+  onDelete,
+}: {
+  item: AuraSummary;
+  index: number;
+  deleting: boolean;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const accent = CARD_ACCENT.auras;
+  const [a, a2] = accent;
+  const dominantHex = AURA_HEX[item.dominant_color] ?? a;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: index * 0.04, ease: "easeOut" }}
+    >
+      <CardShell accent={accent} deleting={deleting} onDelete={onDelete} deleteLabel={`Delete ${item.name}'s scan`}>
+        <button type="button" onClick={onOpen} className="w-full text-left">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 rounded-full flex items-center justify-center text-[16px] font-bold flex-shrink-0 text-white"
+              style={{ background: `radial-gradient(circle, ${dominantHex}, ${a})`, boxShadow: `0 6px 16px ${a}50` }}
+            >
+              {item.name.trim().charAt(0).toUpperCase() || "?"}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[14.5px] font-semibold text-[#1B1730] truncate">{item.name}</span>
+                {item.relation && <GradientPill accent={accent}>{item.relation}</GradientPill>}
+              </div>
+              <p className="text-[11.5px] text-[#8A8398] mt-0.5 truncate">{item.headline_trait}</p>
+            </div>
+            <ChevronRight size={17} className="text-[#C7AD97] flex-shrink-0" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-1.5 mt-4">
+            <FactPill label="Dominant colour" value={item.dominant_color} accent={accent} />
           </div>
         </button>
       </CardShell>
