@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Star, Hand, Smile, Sparkles, Moon, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
+import { Star, Hand, Smile, Sparkles, Moon, Compass, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
 
 import { deleteKundali, listKundalis, type KundaliSummary } from "@/lib/kundali";
 import { deletePalm, listPalms, type PalmSummary } from "@/lib/palm";
@@ -12,13 +12,15 @@ import { deleteFace, listFaces, type FaceSummary } from "@/lib/face";
 import { deleteAura, listAuras, AURA_HEX, type AuraSummary } from "@/lib/aura";
 import { deleteDream, listDreams, type DreamSummary } from "@/lib/dream";
 import DreamCard from "@/components/dream/DreamCard";
+import { deleteVastu, listVastu, type VastuSummary } from "@/lib/vastu";
+import SpaceCard from "@/components/vastu/SpaceCard";
 import { ApiError } from "@/lib/api";
 
 // One hub for every saved reading — mirrors the mobile app's astrology tab
 // (a "Charts | Palms | Faces | Auras" segmented control over the same
 // lists). Reached from the Hero's "Explore Your Horoscope" CTA once signed
 // in, instead of dropping straight into a new Kundli.
-type Tab = "charts" | "palms" | "faces" | "auras" | "dreams";
+type Tab = "charts" | "palms" | "faces" | "auras" | "dreams" | "spaces";
 
 const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon: typeof Star; newLabel: string; href: string }> = {
   charts: {
@@ -61,6 +63,14 @@ const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon
     newLabel: "New dream",
     href: "/dream",
   },
+  spaces: {
+    gradient: "linear-gradient(135deg,#7a2e0e,#c2571f,#e0932f)",
+    title: "My Spaces",
+    sub: "Vastu analyses for every room you've checked.",
+    icon: Compass,
+    newLabel: "New space",
+    href: "/vastu",
+  },
 };
 
 const prettyDate = (iso: string) =>
@@ -76,6 +86,7 @@ export default function ReadingsHub() {
   const [faces, setFaces] = useState<FaceSummary[]>([]);
   const [auras, setAuras] = useState<AuraSummary[]>([]);
   const [dreams, setDreams] = useState<DreamSummary[]>([]);
+  const [spaces, setSpaces] = useState<VastuSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -83,18 +94,20 @@ export default function ReadingsHub() {
   const load = useCallback(async () => {
     const token = await getToken();
     try {
-      const [c, p, f, a, d] = await Promise.all([
+      const [c, p, f, a, d, v] = await Promise.all([
         listKundalis(token),
         listPalms(token),
         listFaces(token),
         listAuras(token),
         listDreams(token),
+        listVastu(token),
       ]);
       setCharts(c);
       setPalms(p);
       setFaces(f);
       setAuras(a);
       setDreams(d);
+      setSpaces(v);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your readings.");
@@ -194,6 +207,23 @@ export default function ReadingsHub() {
     [getToken],
   );
 
+  const handleDeleteSpace = useCallback(
+    async (v: VastuSummary) => {
+      if (!window.confirm(`Remove “${v.label}”? This can't be undone.`)) return;
+      setDeletingId(v.id);
+      const token = await getToken();
+      try {
+        await deleteVastu(v.id, token);
+        setSpaces((prev) => prev.filter((x) => x.id !== v.id));
+      } catch {
+        setError("Couldn't delete that analysis. Please try again.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [getToken],
+  );
+
   const meta = TAB_META[tab];
   const Icon = meta.icon;
 
@@ -214,11 +244,11 @@ export default function ReadingsHub() {
       <div
         className="relative z-10 mx-2 sm:mx-4 flex gap-1.5 p-1.5 rounded-[16px] border shadow-[0_10px_26px_rgba(27,23,48,.08)]"
         style={{
-          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12, ${CARD_ACCENT.auras[0]}12, ${CARD_ACCENT.dreams[0]}12)`,
+          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12, ${CARD_ACCENT.auras[0]}12, ${CARD_ACCENT.dreams[0]}12, ${CARD_ACCENT.spaces[0]}12)`,
           borderColor: `${CARD_ACCENT[tab][0]}28`,
         }}
       >
-        {(["charts", "palms", "faces", "auras", "dreams"] as Tab[]).map((t) => {
+        {(["charts", "palms", "faces", "auras", "dreams", "spaces"] as Tab[]).map((t) => {
           const on = tab === t;
           const [a, a2] = CARD_ACCENT[t];
           const TIcon = TAB_META[t].icon;
@@ -227,15 +257,15 @@ export default function ReadingsHub() {
               key={t}
               type="button"
               onClick={() => setTab(t)}
-              className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-[12px] text-[13px] font-bold transition-all"
+              className="flex-1 flex items-center justify-center gap-1.5 h-11 rounded-[12px] text-[12px] sm:text-[13px] font-bold transition-all"
               style={
                 on
                   ? { background: `linear-gradient(135deg, ${a}, ${a2})`, color: "#fff", boxShadow: `0 6px 16px ${a}45` }
                   : { background: `${a}14`, color: a }
               }
             >
-              <TIcon size={14} />
-              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : t === "faces" ? "Faces" : t === "auras" ? "Auras" : "Dreams"}
+              <TIcon size={14} className="hidden sm:block" />
+              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : t === "faces" ? "Faces" : t === "auras" ? "Auras" : t === "dreams" ? "Dreams" : "Spaces"}
             </button>
           );
         })}
@@ -353,6 +383,27 @@ export default function ReadingsHub() {
                     ))}
                   </div>
                 )
+              ) : tab === "spaces" ? (
+                spaces.length === 0 ? (
+                  <EmptyState
+                    icon={Icon}
+                    accent={CARD_ACCENT.spaces}
+                    title="No spaces yet"
+                    body="Analyse a room and it's saved here to revisit any time."
+                  />
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {spaces.map((v) => (
+                      <SpaceCard
+                        key={v.id}
+                        item={v}
+                        deleting={deletingId === v.id}
+                        onOpen={() => router.push(`/vastu?id=${v.id}`)}
+                        onDelete={() => handleDeleteSpace(v)}
+                      />
+                    ))}
+                  </div>
+                )
               ) : auras.length === 0 ? (
                 <EmptyState
                   icon={Icon}
@@ -392,6 +443,7 @@ const CARD_ACCENT: Record<Tab, [string, string]> = {
   faces: ["#0f8a7e", "#3fa66b"],
   auras: ["#7c3aed", "#c026d3"],
   dreams: ["#4f46e5", "#6d28d9"],
+  spaces: ["#c2571f", "#e0932f"],
 };
 
 function EmptyState({

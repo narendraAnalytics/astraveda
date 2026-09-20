@@ -65,6 +65,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.vastu,
     title: "Vastu AI",
     price: "₹150",
+    href: "/vastu",
     desc: "A room photo plus your 8-direction input returns a score, element balance, and non-demolition remedies.",
     accent: "#C1653D",
     accent2: "#E28F63",
