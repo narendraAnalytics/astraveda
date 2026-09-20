@@ -8,6 +8,7 @@ there is no separate narrative phase.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import date
 
@@ -16,6 +17,7 @@ import httpx
 from app.config import get_settings
 
 settings = get_settings()
+log = logging.getLogger(__name__)
 
 
 class ReadingError(RuntimeError):
@@ -85,13 +87,46 @@ def _user_content(*, name: str, profile: dict, dream_text: str, context: dict) -
 
 def _parse_json(text: str) -> dict:
     t = text.strip()
+    # reasoning models can prefix a <think>…</think> block (which may contain braces)
+    t = re.sub(r"<think>.*?</think>", "", t, flags=re.DOTALL).strip()
     t = re.sub(r"^```(?:json)?\s*", "", t)
     t = re.sub(r"\s*```$", "", t)
     # grab the outermost object if the model wrapped it in prose
     start, end = t.find("{"), t.rfind("}")
     if start != -1 and end != -1 and end > start:
         t = t[start : end + 1]
-    return json.loads(t)
+    try:
+        # strict=False tolerates raw line breaks inside string values
+        return json.loads(t, strict=False)
+    except ValueError:
+        return _lenient_extract(t)
+
+
+def _lenient_extract(t: str) -> dict:
+    """Last resort for near-JSON — e.g. unescaped double quotes inside a value.
+    Pull each known field out by pattern instead of trusting the whole document."""
+
+    def field(key: str) -> str:
+        m = re.search(r'"%s"\s*:\s*"(.*?)"\s*(?:,\s*"|\}\s*$)' % key, t, flags=re.DOTALL)
+        return m.group(1).strip() if m else ""
+
+    symbols = [
+        {"symbol": sym.strip(), "meaning": mean.strip()}
+        for sym, mean in re.findall(
+            r'"symbol"\s*:\s*"(.*?)"\s*,\s*"meaning"\s*:\s*"(.*?)"\s*\}', t, flags=re.DOTALL
+        )
+    ]
+    out = {
+        "title": field("title"),
+        "feeling": field("feeling"),
+        "symbols": symbols,
+        "theme": field("theme"),
+        "vedic_note": field("vedic_note"),
+        "guidance": field("guidance"),
+    }
+    if not out["title"] or not (out["theme"] or out["guidance"]):
+        raise ValueError("could not recover a dream reading from the reply")
+    return out
 
 
 def _reasoning_effort() -> str | None:
@@ -150,6 +185,7 @@ async def interpret_dream(*, name: str, profile: dict, dream_text: str, context:
             parsed = _parse_json(content)
             break
         except ValueError:
+            log.warning("dream: unparseable Sarvam reply (%s chars): %r", len(content), content[:1500])
             last_err = f"Sarvam did not return valid JSON (finish_reason={choice.get('finish_reason')})"
 
     if parsed is None:
