@@ -74,6 +74,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.ask,
     title: "Ask AstraVeda",
     price: "₹99",
+    href: "/ask",
     desc: "A real outbound AI voice call — book now or schedule a slot for a live spoken reading.",
     accent: "#A72BE6",
     accent2: "#D26BFF",
