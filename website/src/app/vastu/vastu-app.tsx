@@ -27,6 +27,7 @@ import CompassPicker from "@/components/vastu/CompassPicker";
 import ScoreDial from "@/components/vastu/ScoreDial";
 import ElementBars from "@/components/vastu/ElementBars";
 import VastuLoader from "@/components/vastu/VastuLoader";
+import RoomCamera from "@/components/vastu/RoomCamera";
 
 const VASTU_PRICE_PAISE = 15000; // ₹150 — display only; the server sets the real amount
 const CLAY = "#c2571f";
@@ -45,7 +46,7 @@ const ROOM_GLYPH: Record<RoomType, string> = {
 
 const SEVERITY_TINT: Record<string, string> = { minor: "#e0932f", moderate: "#dd7a3a", major: "#d9534f" };
 
-type Status = "loading" | "form" | "paying" | "capture" | "generating" | "result";
+type Status = "loading" | "form" | "paying" | "capture" | "camera" | "generating" | "result";
 
 // Downscale + re-encode the photo in the browser: a phone camera shot is
 // 4–10 MB, the analysis needs ~1280px. Returns bare base64 (no data: prefix).
@@ -83,7 +84,6 @@ export default function VastuApp() {
   const [dragOver, setDragOver] = useState(false);
 
   const uploadRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
 
   const canPay = label.trim().length >= 2 && !!roomType;
 
@@ -229,9 +229,37 @@ export default function VastuApp() {
     );
   }
 
+  const uploadInput = (
+    <input
+      ref={uploadRef}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={(e) => {
+        const f = e.target.files?.[0];
+        e.target.value = "";
+        if (f) analyse(f);
+      }}
+    />
+  );
+
+  if (status === "camera") {
+    return (
+      <>
+        <RoomCamera
+          onCaptured={analyse}
+          onClose={() => setStatus("capture")}
+          onUpload={() => uploadRef.current?.click()}
+        />
+        {uploadInput}
+      </>
+    );
+  }
+
   if (status === "capture") {
     return (
       <div className="max-w-[560px] mx-auto">
+        {uploadInput}
         <BackLink onClick={() => setStatus("form")} />
         <div className="rounded-[28px] p-6 sm:p-9 border" style={{ background: "linear-gradient(165deg,#FFF6EC,#FFFFFF)", borderColor: "rgba(194,87,31,.2)" }}>
           <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-[#1f6b45] bg-[#eaf7ee] border border-[#bfe3cb] rounded-full px-3 py-1 mb-4">
@@ -279,7 +307,7 @@ export default function VastuApp() {
               </button>
               <button
                 type="button"
-                onClick={() => cameraRef.current?.click()}
+                onClick={() => setStatus("camera")}
                 className="h-12 px-6 rounded-[100px] font-bold text-[14px] inline-flex items-center justify-center gap-2 border transition-colors hover:bg-[#fbeee2]"
                 style={{ color: CLAY, borderColor: "rgba(194,87,31,.35)" }}
               >
@@ -287,30 +315,6 @@ export default function VastuApp() {
               </button>
             </div>
           </div>
-
-          <input
-            ref={uploadRef}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) analyse(f);
-            }}
-          />
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            hidden
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) analyse(f);
-            }}
-          />
 
           {captureError && (
             <p className="text-[13px] text-[#C0392B] bg-[#FDF1EF] border border-[#F0C9C2] rounded-[10px] px-3.5 py-2.5 mt-5">
