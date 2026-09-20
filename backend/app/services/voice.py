@@ -66,19 +66,38 @@ def _outbounds_url() -> str:
     )
 
 
+# The agent SPEAKS these values, so send natural phrases rather than raw keys /
+# ISO strings ("guidance about general", "1995-01-01", "06:00" all sound wrong on a call).
+_TOPIC_SPOKEN = {
+    "career": "your career and work",
+    "marriage": "marriage and relationships",
+    "health": "your health and wellbeing",
+    "finance": "money and finance",
+    "general": "your life in general",
+}
+
+
+def _spoken_date(d) -> str:
+    return f"{d.day} {d.strftime('%B')} {d.year}"
+
+
+def _spoken_time(t) -> str:
+    return t.strftime("%I:%M %p").lstrip("0")
+
+
 def agent_variables(c) -> dict:
     """Build the agent_variables block from a Consultation row. Only keys the
     committed agent declares; every value coerced to a non-empty string."""
     raw = {
         "caller_name": c.caller_name,
         "user_name": c.caller_name,
-        "birth_date": c.birth_date.isoformat() if c.birth_date else "unknown",
+        "birth_date": _spoken_date(c.birth_date) if c.birth_date else "unknown",
         "birth_time": (
             "unknown" if (c.unknown_time or not c.birth_time)
-            else c.birth_time.strftime("%H:%M")
+            else _spoken_time(c.birth_time)
         ),
         "birth_place": c.birth_place or "unknown",
-        "consultation_topic": c.consultation_topic or "general",
+        "consultation_topic": _TOPIC_SPOKEN.get(c.consultation_topic or "general", c.consultation_topic or "your life in general"),
         "user_question": c.user_question or "a general life reading",
         "booking_type": c.booking_type,
         "slot_label": c.slot_label or "now",

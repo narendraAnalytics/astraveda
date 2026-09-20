@@ -554,6 +554,14 @@ export default function AskApp() {
             </p>
           )}
 
+          {step === 2 && (
+            <p className="text-[11.5px] leading-[1.6] text-[#6b6890] bg-[#f3e8ff]/60 border border-[#8f29dd]/12 rounded-[12px] px-3.5 py-2.5 mt-6">
+              By booking, you agree to receive an AI voice call at this number. The call is with an AI astrologer, and
+              may be recorded and transcribed to improve quality. Astrology guidance is not a substitute for medical,
+              legal or financial advice.
+            </p>
+          )}
+
           <div className="flex items-center gap-3 mt-8">
             {step > 0 && (
               <button
