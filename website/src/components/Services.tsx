@@ -83,6 +83,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.puja,
     title: "Puja & Temples",
     price: "₹100–450",
+    href: "/puja",
     desc: "Book real temples and puja types with live capacity tracking and a QR e-pass.",
     accent: "#C18426",
     accent2: "#F0B94F",
