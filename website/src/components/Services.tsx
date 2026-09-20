@@ -56,6 +56,7 @@ const TOOLS: Tool[] = [
     image: TOOL_IMAGES.dream,
     title: "Dream Interpreter",
     price: "₹30",
+    href: "/dream",
     desc: "Describe a dream in your own words and get a structured Vedic interpretation.",
     accent: "#5B5FEF",
     accent2: "#8B8FFF",

@@ -112,35 +112,48 @@ async def interpret_dream(*, name: str, profile: dict, dream_text: str, context:
             )},
         ],
         "temperature": 0.6,
-        "max_tokens": 2048,
+        "max_tokens": 4096,
         "reasoning_effort": _reasoning_effort(),
     }
     headers = {
         "Authorization": f"Bearer {settings.sarvam_api_key}",
         "api-subscription-key": settings.sarvam_api_key,
     }
-    try:
-        async with httpx.AsyncClient(base_url=settings.sarvam_base_url, timeout=60) as client:
-            resp = await client.post("/v1/chat/completions", json=payload, headers=headers)
-    except httpx.HTTPError as exc:
-        raise ReadingError(f"Sarvam request failed: {exc}") from exc
+    # Sarvam occasionally returns truncated or slightly malformed JSON (a long
+    # reply hitting the token cap, an unescaped quote). Retry once before failing
+    # — the payment is only consumed after a successful parse, so a failure here
+    # never costs the user.
+    parsed: dict | None = None
+    last_err = ""
+    for _attempt in range(2):
+        try:
+            async with httpx.AsyncClient(base_url=settings.sarvam_base_url, timeout=90) as client:
+                resp = await client.post("/v1/chat/completions", json=payload, headers=headers)
+        except httpx.HTTPError as exc:
+            raise ReadingError(f"Sarvam request failed: {exc}") from exc
 
-    if resp.status_code != 200:
-        raise ReadingError(f"Sarvam {resp.status_code} ({settings.sarvam_chat_model}): {resp.text[:300]}")
+        if resp.status_code != 200:
+            raise ReadingError(f"Sarvam {resp.status_code} ({settings.sarvam_chat_model}): {resp.text[:300]}")
 
-    try:
-        data = resp.json()
-        content = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError, ValueError) as exc:
-        raise ReadingError(f"Unexpected Sarvam response: {resp.text[:300]}") from exc
+        try:
+            data = resp.json()
+            choice = data["choices"][0]
+            content = choice["message"]["content"]
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            raise ReadingError(f"Unexpected Sarvam response: {resp.text[:300]}") from exc
 
-    if not content or not content.strip():
-        raise ReadingError("Sarvam returned an empty interpretation")
+        if not content or not content.strip():
+            last_err = "Sarvam returned an empty interpretation"
+            continue
 
-    try:
-        parsed = _parse_json(content)
-    except ValueError as exc:
-        raise ReadingError(f"Sarvam did not return valid JSON: {content[:300]}") from exc
+        try:
+            parsed = _parse_json(content)
+            break
+        except ValueError:
+            last_err = f"Sarvam did not return valid JSON (finish_reason={choice.get('finish_reason')})"
+
+    if parsed is None:
+        raise ReadingError(f"{last_err}. Your payment is safe — tap “Payment received” to try again at no charge.")
 
     symbols = []
     for s in parsed.get("symbols") or []:

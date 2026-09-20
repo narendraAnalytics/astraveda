@@ -4,19 +4,21 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Star, Hand, Smile, Sparkles, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
+import { Star, Hand, Smile, Sparkles, Moon, Plus, ChevronRight, Trash2, Camera } from "lucide-react";
 
 import { deleteKundali, listKundalis, type KundaliSummary } from "@/lib/kundali";
 import { deletePalm, listPalms, type PalmSummary } from "@/lib/palm";
 import { deleteFace, listFaces, type FaceSummary } from "@/lib/face";
 import { deleteAura, listAuras, AURA_HEX, type AuraSummary } from "@/lib/aura";
+import { deleteDream, listDreams, type DreamSummary } from "@/lib/dream";
+import DreamCard from "@/components/dream/DreamCard";
 import { ApiError } from "@/lib/api";
 
 // One hub for every saved reading — mirrors the mobile app's astrology tab
 // (a "Charts | Palms | Faces | Auras" segmented control over the same
 // lists). Reached from the Hero's "Explore Your Horoscope" CTA once signed
 // in, instead of dropping straight into a new Kundli.
-type Tab = "charts" | "palms" | "faces" | "auras";
+type Tab = "charts" | "palms" | "faces" | "auras" | "dreams";
 
 const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon: typeof Star; newLabel: string; href: string }> = {
   charts: {
@@ -51,6 +53,14 @@ const TAB_META: Record<Tab, { gradient: string; title: string; sub: string; icon
     newLabel: "New scan",
     href: "/aura",
   },
+  dreams: {
+    gradient: "linear-gradient(135deg,#1e1b4b,#4f46e5,#6d28d9)",
+    title: "Your Dream Journal",
+    sub: "Every dream you've had interpreted.",
+    icon: Moon,
+    newLabel: "New dream",
+    href: "/dream",
+  },
 };
 
 const prettyDate = (iso: string) =>
@@ -65,6 +75,7 @@ export default function ReadingsHub() {
   const [palms, setPalms] = useState<PalmSummary[]>([]);
   const [faces, setFaces] = useState<FaceSummary[]>([]);
   const [auras, setAuras] = useState<AuraSummary[]>([]);
+  const [dreams, setDreams] = useState<DreamSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -72,16 +83,18 @@ export default function ReadingsHub() {
   const load = useCallback(async () => {
     const token = await getToken();
     try {
-      const [c, p, f, a] = await Promise.all([
+      const [c, p, f, a, d] = await Promise.all([
         listKundalis(token),
         listPalms(token),
         listFaces(token),
         listAuras(token),
+        listDreams(token),
       ]);
       setCharts(c);
       setPalms(p);
       setFaces(f);
       setAuras(a);
+      setDreams(d);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Couldn't load your readings.");
@@ -164,6 +177,23 @@ export default function ReadingsHub() {
     [getToken],
   );
 
+  const handleDeleteDream = useCallback(
+    async (d: DreamSummary) => {
+      if (!window.confirm(`Remove “${d.title}” from your journal? This can't be undone.`)) return;
+      setDeletingId(d.id);
+      const token = await getToken();
+      try {
+        await deleteDream(d.id, token);
+        setDreams((prev) => prev.filter((x) => x.id !== d.id));
+      } catch {
+        setError("Couldn't delete that dream. Please try again.");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [getToken],
+  );
+
   const meta = TAB_META[tab];
   const Icon = meta.icon;
 
@@ -184,11 +214,11 @@ export default function ReadingsHub() {
       <div
         className="relative z-10 mx-2 sm:mx-4 flex gap-1.5 p-1.5 rounded-[16px] border shadow-[0_10px_26px_rgba(27,23,48,.08)]"
         style={{
-          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12, ${CARD_ACCENT.auras[0]}12)`,
+          background: `linear-gradient(135deg, ${CARD_ACCENT.charts[0]}12, ${CARD_ACCENT.palms[0]}12, ${CARD_ACCENT.faces[0]}12, ${CARD_ACCENT.auras[0]}12, ${CARD_ACCENT.dreams[0]}12)`,
           borderColor: `${CARD_ACCENT[tab][0]}28`,
         }}
       >
-        {(["charts", "palms", "faces", "auras"] as Tab[]).map((t) => {
+        {(["charts", "palms", "faces", "auras", "dreams"] as Tab[]).map((t) => {
           const on = tab === t;
           const [a, a2] = CARD_ACCENT[t];
           const TIcon = TAB_META[t].icon;
@@ -205,7 +235,7 @@ export default function ReadingsHub() {
               }
             >
               <TIcon size={14} />
-              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : t === "faces" ? "Faces" : "Auras"}
+              {t === "charts" ? "Kundali" : t === "palms" ? "Palms" : t === "faces" ? "Faces" : t === "auras" ? "Auras" : "Dreams"}
             </button>
           );
         })}
@@ -302,6 +332,27 @@ export default function ReadingsHub() {
                     ))}
                   </div>
                 )
+              ) : tab === "dreams" ? (
+                dreams.length === 0 ? (
+                  <EmptyState
+                    icon={Icon}
+                    accent={CARD_ACCENT.dreams}
+                    title="No dreams yet"
+                    body="Describe a dream and it's saved here to revisit any time."
+                  />
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {dreams.map((d) => (
+                      <DreamCard
+                        key={d.id}
+                        item={d}
+                        deleting={deletingId === d.id}
+                        onOpen={() => router.push(`/dream?id=${d.id}`)}
+                        onDelete={() => handleDeleteDream(d)}
+                      />
+                    ))}
+                  </div>
+                )
               ) : auras.length === 0 ? (
                 <EmptyState
                   icon={Icon}
@@ -340,6 +391,7 @@ const CARD_ACCENT: Record<Tab, [string, string]> = {
   palms: ["#C0356F", "#E2745A"],
   faces: ["#0f8a7e", "#3fa66b"],
   auras: ["#7c3aed", "#c026d3"],
+  dreams: ["#4f46e5", "#6d28d9"],
 };
 
 function EmptyState({
