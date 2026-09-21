@@ -3,8 +3,24 @@
 import { motion } from "framer-motion";
 import Reveal from "./Reveal";
 import AuthAwareLink from "./auth/AuthAwareLink";
-import VirtualPujaLink from "./VirtualPujaLink";
+import TapHandLink, { type TapHandTheme } from "./TapHandLink";
 import { TOOL_IMAGES } from "@/lib/site";
+
+// Attention pills under the toolkit — each gets its own colour so they read as two things.
+const PUJA_THEME: TapHandTheme = {
+  color: "#C1653D",
+  bg: "#FFF3E6",
+  hoverBg: "#FFE7CC",
+  ink: "#8A3F1C",
+  glow: "rgba(255,150,60,.5)",
+};
+const HOROSCOPE_THEME: TapHandTheme = {
+  color: "#8F29DD",
+  bg: "#F5ECFF",
+  hoverBg: "#EBDBFF",
+  ink: "#5A1A94",
+  glow: "rgba(167,43,230,.42)",
+};
 
 type Tool = {
   image: string;
@@ -241,10 +257,15 @@ export default function Services() {
         </div>
 
         <Reveal delay={0.1} className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <VirtualPujaLink />
-          <a href="/horoscope" className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#8F29DD] bg-[#8F29DD]/[.08] border border-[#8F29DD]/20 transition hover:bg-[#8F29DD]/[.16] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(143,41,221,.25)]">
-            🌤 Daily Horoscope — Free
-          </a>
+          <TapHandLink href="/virtual-puja" emoji="🪔" label="Virtual Puja — Free" tag="Try" theme={PUJA_THEME} />
+          <TapHandLink
+            href="/horoscope"
+            emoji="🌤"
+            label="Daily Horoscope — Free"
+            tag="Read"
+            theme={HOROSCOPE_THEME}
+            delay={1.3}
+          />
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#2FA7A0] bg-[#2FA7A0]/[.08] border border-[#2FA7A0]/20">
             🌐 7 Languages Supported
           </span>
