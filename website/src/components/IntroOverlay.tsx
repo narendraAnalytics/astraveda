@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import { INTRO_VIDEO, LOGO_URL } from "@/lib/site";
 import { useI18n } from "@/i18n/I18nProvider";
 import { CoverStage, WatermarkPatch } from "./WatermarkPatch";
+import IntroEnterButton from "./IntroEnterButton";
 
 // Shown once per browser-tab session (sessionStorage) — reloads, in-site navigation and
 // coming back from /sign-in don't re-gate the visitor; a new tab / new visit does.
@@ -147,33 +148,7 @@ export default function IntroOverlay() {
 
           {/* Enter */}
           <div className="absolute inset-x-0 bottom-[max(2.5rem,env(safe-area-inset-bottom))] flex justify-center px-6">
-            <motion.button
-              type="button"
-              autoFocus
-              onClick={enter}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5, duration: 0.7, ease: "easeOut" }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.97 }}
-              className="group relative inline-flex items-center gap-3 rounded-full px-10 py-4 text-[17px] font-semibold tracking-[.04em] text-[#241505] shadow-[0_10px_36px_rgba(244,210,138,.5)]"
-              style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
-            >
-              {!reduce && (
-                <motion.span
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 rounded-full border border-[#F4D28A]"
-                  animate={{ scale: [1, 1.35], opacity: [0.7, 0] }}
-                  transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
-                />
-              )}
-              {d.intro.enter}
-              <ArrowRight
-                size={20}
-                strokeWidth={2.4}
-                className="transition-transform duration-300 group-hover:translate-x-1"
-              />
-            </motion.button>
+            <IntroEnterButton onEnter={enter} label={d.intro.enter} />
           </div>
         </motion.div>
       )}
