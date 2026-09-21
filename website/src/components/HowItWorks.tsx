@@ -3,34 +3,17 @@
 import { CalendarClock, ScanFace, Wand2, Languages } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import Reveal from "./Reveal";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const CYCLE = 4.4;
 
-const STEPS = [
-  {
-    icon: CalendarClock,
-    title: "Share your details",
-    desc: "Enter your birth details, snap a selfie, or describe a dream — whatever the reading needs.",
-  },
-  {
-    icon: ScanFace,
-    title: "AI reads the signal",
-    desc: "Gemini Vision extracts features from photos; our own Swiss Ephemeris engine computes your chart.",
-  },
-  {
-    icon: Wand2,
-    title: "Sarvam writes it up",
-    desc: "The computed facts become a natural, human-sounding reading — never a generic template.",
-  },
-  {
-    icon: Languages,
-    title: "Read it your way",
-    desc: "Get your reading in one of 7 languages, or ask a follow-up on a live AI voice call.",
-  },
-];
+// Icons per step; the text comes from the language dictionary.
+const STEP_ICONS = [CalendarClock, ScanFace, Wand2, Languages];
 
 export default function HowItWorks() {
   const reduceMotion = useReducedMotion();
+  const { d } = useI18n();
+  const STEPS = d.how.steps.map((s, i) => ({ ...s, icon: STEP_ICONS[i] }));
 
   return (
     <section
@@ -49,12 +32,12 @@ export default function HowItWorks() {
       <div className="relative max-w-[1100px] mx-auto">
         <Reveal className="max-w-2xl mx-auto text-center mb-16 sm:mb-20">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[rgba(244,210,138,.3)] bg-[rgba(244,210,138,.08)] text-[#F4D28A] text-[13px] font-medium tracking-[.02em] mb-5">
-            How It Works
+            {d.how.pill}
           </span>
           <h2 className="font-[family-name:var(--font-display)] text-[clamp(30px,4vw,44px)] leading-[1.1] text-[#FFF7E6] font-medium mb-4">
-            From your details to a reading,
+            {d.how.titleA}
             <br />
-            <span className="italic text-[#F4D28A]">in seconds</span>
+            <span className="italic text-[#F4D28A]">{d.how.titleAccent}</span>
           </h2>
         </Reveal>
 
@@ -115,7 +98,7 @@ export default function HowItWorks() {
                     <Icon size={22} strokeWidth={1.8} />
                   </motion.span>
                   <div className="text-[12px] font-semibold tracking-[.12em] text-[rgba(244,210,138,.6)]">
-                    STEP {i + 1}
+                    {d.how.step} {i + 1}
                   </div>
                   <h3 className="text-[16.5px] font-semibold text-[#FFF7E6]">
                     {step.title}

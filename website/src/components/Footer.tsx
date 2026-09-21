@@ -1,4 +1,7 @@
+"use client";
+
 import { LOGO_URL, NAV_LINKS } from "@/lib/site";
+import { useI18n } from "@/i18n/I18nProvider";
 
 const LANGUAGES = [
   "English",
@@ -11,6 +14,7 @@ const LANGUAGES = [
 ];
 
 export default function Footer() {
+  const { d } = useI18n();
   return (
     <footer
       data-nav-theme="dark"
@@ -30,24 +34,22 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-[13.5px] leading-[1.7] text-[rgba(255,247,230,.6)] max-w-sm">
-              AI-powered Vedic astrology, palmistry, face reading, Vastu and
-              temple e-commerce — built on our own self-hosted astrology
-              engine, no third-party APIs.
+              {d.footer.desc}
             </p>
           </div>
 
           <div>
             <div className="text-[12px] font-semibold tracking-[.12em] text-[#F4D28A] mb-4">
-              NAVIGATE
+              {d.footer.navigate}
             </div>
             <ul className="flex flex-col gap-3">
-              {NAV_LINKS.map((link) => (
+              {NAV_LINKS.map((link, i) => (
                 <li key={link.label}>
                   <a
                     href={link.href}
                     className="text-[14px] text-[rgba(255,247,230,.7)] hover:text-[#FFF7E6] transition-colors"
                   >
-                    {link.label}
+                    {d.nav.links[i] ?? link.label}
                   </a>
                 </li>
               ))}
@@ -56,7 +58,7 @@ export default function Footer() {
 
           <div>
             <div className="text-[12px] font-semibold tracking-[.12em] text-[#F4D28A] mb-4">
-              AVAILABLE IN
+              {d.footer.availableIn}
             </div>
             <div className="flex flex-wrap gap-2">
               {LANGUAGES.map((lang) => (
@@ -73,10 +75,10 @@ export default function Footer() {
 
         <div className="pt-6 border-t border-[rgba(255,247,230,.1)] flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-[12.5px] text-[rgba(255,247,230,.5)]">
-            © {new Date().getFullYear()} AstraVeda. All rights reserved.
+            © {new Date().getFullYear()} AstraVeda. {d.footer.rights}
           </p>
           <p className="text-[12.5px] text-[rgba(255,247,230,.5)]">
-            Cosmic intelligence for a better you.
+            {d.footer.tagline}
           </p>
         </div>
       </div>

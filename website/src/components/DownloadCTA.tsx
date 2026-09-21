@@ -2,8 +2,10 @@
 
 import { Apple, PlayCircle } from "lucide-react";
 import Reveal from "./Reveal";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export default function DownloadCTA() {
+  const { d } = useI18n();
   return (
     <section
       data-nav-theme="light"
@@ -26,11 +28,10 @@ export default function DownloadCTA() {
           />
           <div className="relative">
             <h2 className="font-[family-name:var(--font-display)] text-[clamp(28px,3.6vw,40px)] leading-[1.15] text-white font-medium mb-4">
-              Your stars are one tap away
+              {d.download.title}
             </h2>
             <p className="text-[15px] leading-[1.7] text-white/80 max-w-[480px] mx-auto mb-9">
-              Download AstraVeda and get your first Kundli reading, daily
-              horoscope, and cosmic guidance — free to start.
+              {d.download.body}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <a

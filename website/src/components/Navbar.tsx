@@ -5,6 +5,8 @@ import { Show, UserButton, useUser } from "@clerk/nextjs";
 import { LOGO_URL, NAV_LINKS } from "@/lib/site";
 import { useWallet } from "@/hooks/use-wallet";
 import { rupees } from "@/lib/wallet";
+import { useI18n } from "@/i18n/I18nProvider";
+import LanguageSwitcher from "./LanguageSwitcher";
 
 const NAV_TRIGGER = 96;
 
@@ -13,6 +15,7 @@ export default function Navbar() {
   const { user, isSignedIn } = useUser();
   const displayName = user?.firstName ?? user?.username ?? null;
   const { wallet } = useWallet(!!isSignedIn);
+  const { d } = useI18n();
 
   useEffect(() => {
     const sections = Array.from(
@@ -98,19 +101,20 @@ export default function Navbar() {
                   : "text-[rgba(255,247,230,.72)] hover:text-[#FFF7E6] transition-colors"
               }
             >
-              {link.label}
+              {d.nav.links[i] ?? link.label}
             </a>
           ))}
         </div>
 
-        <div className="flex-shrink-0 flex items-center gap-3">
+        <div className="flex-shrink-0 flex items-center gap-2 sm:gap-3">
+          <LanguageSwitcher isLight={isLight} />
           <Show when="signed-out">
             <a
               href="/sign-in"
               className="flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 sm:py-[9px] rounded-[100px] font-semibold text-[12.5px] sm:text-[13.5px] text-[#241505] shadow-[0_4px_18px_rgba(244,210,138,.35)] whitespace-nowrap"
               style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
             >
-              Sign In <span className="text-[13px] sm:text-[14px]">→</span>
+              {d.nav.signIn} <span className="text-[13px] sm:text-[14px]">→</span>
             </a>
           </Show>
           <Show when="signed-in">
@@ -119,7 +123,7 @@ export default function Navbar() {
               className="flex items-center gap-1.5 px-3 py-[7px] rounded-[100px] text-[12.5px] font-semibold whitespace-nowrap text-white bg-[linear-gradient(135deg,#C18426,#E9BE6C)] hover:brightness-105 transition-[filter]"
             >
               <span>👛</span>
-              {wallet ? rupees(wallet.balance_paise) : "Wallet"}
+              {wallet ? rupees(wallet.balance_paise) : d.nav.wallet}
             </a>
             {displayName && (
               <a
@@ -128,7 +132,7 @@ export default function Navbar() {
                   isLight ? "text-[#1B1730]" : "text-[#FFF7E6]"
                 }`}
               >
-                Welcome, {displayName}
+                {d.nav.welcome.replace("{name}", displayName)}
               </a>
             )}
             <UserButton />

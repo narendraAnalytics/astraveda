@@ -10,22 +10,11 @@ import {
 import { Sparkles, Languages as LanguagesIcon, PhoneCall } from "lucide-react";
 import { HERO_VIDEOS, VIDEO_URL } from "@/lib/site";
 import AuthAwareLink from "./auth/AuthAwareLink";
+import { useI18n } from "@/i18n/I18nProvider";
 
-const FEATURE_STRIP = [
-  { icon: "✦", title: "Kundli & Charts", sub: "16 Divisional Views" },
-  { icon: "✋", title: "Palmistry", sub: "AI Hand Analysis" },
-  { icon: "◎", title: "Face Reading", sub: "Personality Insights" },
-  { icon: "⌂", title: "Vastu AI", sub: "Home Harmony" },
-  { icon: "❁", title: "Past Life", sub: "Karmic Decode" },
-  { icon: "♥", title: "Matchmaking", sub: "Soul Connections" },
-  { icon: "🔔", title: "Puja & Temples", sub: "Live & Personalized" },
-];
-
-const STATS = [
-  { value: "16+", label: "Divisional Charts", Icon: Sparkles },
-  { value: "6", label: "Languages", Icon: LanguagesIcon },
-  { value: "12/min", label: "Live Consultation", Icon: PhoneCall },
-];
+// Icons stay fixed per slot; titles/subtitles come from the language dictionary.
+const FEATURE_ICONS = ["✦", "✋", "◎", "⌂", "❁", "♥", "🔔"];
+const FEATURE_ORDER = FEATURE_ICONS.map((_, i) => i);
 
 type FeatureCardData = { icon: string; title: string; sub: string };
 
@@ -107,7 +96,14 @@ function FeatureCard({ f, i }: { f: FeatureCardData; i: number }) {
 
 export default function Hero() {
   const [videoOpen, setVideoOpen] = useState(false);
-  const [cards, setCards] = useState(FEATURE_STRIP);
+  const { d } = useI18n();
+  // The strip rotates by slot index, so a language switch never resets or re-keys it.
+  const [cards, setCards] = useState(FEATURE_ORDER);
+  const STATS = [
+    { value: "16+", label: d.hero.statCharts, Icon: Sparkles },
+    { value: "7", label: d.hero.statLanguages, Icon: LanguagesIcon },
+    { value: "12/min", label: d.hero.statConsult, Icon: PhoneCall },
+  ];
   const [activeVideo, setActiveVideo] = useState(0);
   const videoRefs = useRef<Array<HTMLVideoElement | null>>([]);
 
@@ -257,23 +253,23 @@ export default function Hero() {
       <div className="av-hero-wrap relative z-[5] max-w-[1360px] mx-auto flex items-center min-h-[760px] px-7 pt-24 sm:pt-28">
         <div className="av-hero-copy max-w-[600px] pt-5">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-[100px] border border-[rgba(244,210,138,.35)] backdrop-blur-md text-[#F4D28A] text-[13px] font-medium tracking-[.02em] mb-[26px] bg-[rgba(244,210,138,.1)]">
-            <span className="text-[14px]">✦</span> Step into a Brighter 2026
+            <span className="text-[14px]">✦</span> {d.hero.badge}
           </div>
 
           <h1 className="font-[family-name:var(--font-display)] font-medium text-[clamp(40px,5.4vw,68px)] leading-[1.06] text-[#FFF7E6] mb-[22px] tracking-[.005em]">
-            Your Journey,
+            {d.hero.titleA}
             <br />
-            Written in the <span className="text-[#F4D28A] italic">Stars</span>
+            {d.hero.titleB ? `${d.hero.titleB} ` : ""}
+            <span className="text-[#F4D28A] italic">{d.hero.titleStars}</span>
+            {d.hero.titleC ? ` ${d.hero.titleC}` : ""}
           </h1>
 
           <p className="text-[clamp(16px,1.5vw,19px)] text-[rgba(255,247,230,.9)] font-medium mb-[14px] tracking-[.01em]">
-            AI-Powered Astrology. Ancient Wisdom. A Better You.
+            {d.hero.tagline}
           </p>
 
           <p className="text-[15.5px] leading-[1.65] text-[rgba(255,247,230,.68)] mb-9 max-w-[480px]">
-            Discover your future, understand your karmas, and unlock life&apos;s
-            opportunities with personalized AI-driven astrological insights and
-            spiritual guidance.
+            {d.hero.body}
           </p>
 
           <div className="av-cta-row flex items-center gap-4 flex-wrap">
@@ -283,7 +279,7 @@ export default function Hero() {
               className="inline-flex items-center gap-[10px] px-[30px] py-4 rounded-[100px] font-semibold text-[15.5px] text-[#241505] shadow-[0_8px_28px_rgba(244,210,138,.4)]"
               style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
             >
-              Explore Your Horoscope <span>→</span>
+              {d.hero.cta} <span>→</span>
             </AuthAwareLink>
             <button
               type="button"
@@ -293,7 +289,7 @@ export default function Hero() {
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-[rgba(255,247,230,.6)] text-[9px]">
                 ▶
               </span>{" "}
-              Watch Video
+              {d.hero.watch}
             </button>
           </div>
 
@@ -320,8 +316,12 @@ export default function Hero() {
       {/* Feature strip */}
       <div className="relative z-[6] max-w-[1360px] mx-auto mt-8 px-7 pb-8">
         <div className="av-feature-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {cards.map((f, i) => (
-            <FeatureCard key={f.title} f={f} i={i} />
+          {cards.map((idx, i) => (
+            <FeatureCard
+              key={idx}
+              f={{ icon: FEATURE_ICONS[idx], ...d.hero.features[idx] }}
+              i={i}
+            />
           ))}
         </div>
       </div>
@@ -340,7 +340,7 @@ export default function Hero() {
               type="button"
               onClick={() => setVideoOpen(false)}
               className="absolute -top-10 right-0 text-[#FFF7E6] text-2xl leading-none"
-              aria-label="Close video"
+              aria-label={d.hero.closeVideo}
             >
               ✕
             </button>

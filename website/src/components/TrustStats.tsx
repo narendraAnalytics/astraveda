@@ -4,33 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { ShieldCheck, Landmark, Globe2, Layers } from "lucide-react";
 import { useInView, useReducedMotion } from "framer-motion";
 import Reveal from "./Reveal";
+import { useI18n } from "@/i18n/I18nProvider";
 
-const STATS = [
-  {
-    icon: ShieldCheck,
-    value: "0",
-    label: "Third-party astrology APIs",
-    sub: "Every chart is computed in-house — nothing outsourced",
-    featured: true,
-  },
-  {
-    icon: Layers,
-    value: "16+",
-    label: "Divisional charts",
-    sub: "Full Vimshottari Dasha, computed on our own Swiss Ephemeris engine",
-  },
-  {
-    icon: Globe2,
-    value: "7",
-    label: "Languages",
-    sub: "English, Hindi, Odia, Tamil, Telugu, Marathi & Kannada",
-  },
-  {
-    icon: Landmark,
-    value: "6",
-    label: "Real temples",
-    sub: "13 puja types with live daily capacity tracking",
-  },
+// Icons + numbers are language-neutral; labels/subtitles come from the dictionary.
+const STAT_META = [
+  { icon: ShieldCheck, value: "0", featured: true },
+  { icon: Layers, value: "16+", featured: false },
+  { icon: Globe2, value: "7", featured: false },
+  { icon: Landmark, value: "6", featured: false },
 ];
 
 function StatNumber({ value }: { value: string }) {
@@ -71,6 +52,8 @@ function StatNumber({ value }: { value: string }) {
 }
 
 export default function TrustStats() {
+  const { d } = useI18n();
+  const STATS = STAT_META.map((m, i) => ({ ...m, ...d.trust.stats[i] }));
   return (
     <section
       data-nav-theme="dark"
@@ -91,11 +74,10 @@ export default function TrustStats() {
       <div className="relative max-w-[1100px] mx-auto">
         <Reveal className="max-w-xl mx-auto text-center mb-14">
           <h2 className="font-[family-name:var(--font-display)] text-[clamp(26px,3.2vw,36px)] leading-[1.15] text-[#FFF7E6] font-medium mb-3">
-            Built to be trusted, not just tried
+            {d.trust.title}
           </h2>
           <p className="text-[14.5px] leading-[1.65] text-[rgba(255,247,230,.65)]">
-            Every payment, wallet balance, and order is verified server-side —
-            never trusted from the client.
+            {d.trust.body}
           </p>
         </Reveal>
 
@@ -104,7 +86,7 @@ export default function TrustStats() {
             const Icon = s.icon;
             return (
               <Reveal
-                key={s.label}
+                key={i}
                 delay={i * 0.08}
                 y={20}
                 className={s.featured ? "col-span-2" : "col-span-1"}

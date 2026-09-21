@@ -95,3 +95,19 @@ input:-webkit-autofill:focus {
   box-shadow: 0 0 0px 1000px #fff inset;
   transition: background-color 9999s ease-in-out 0s;
 }
+
+/* ── Indic-script typography (Hindi, Odia, Tamil, Telugu, Marathi, Kannada) ──
+   Applied only when the site language isn't English (<html lang> is set by
+   I18nProvider). These scripts have no italic (browsers fake an oblique that looks
+   broken), letter-spacing breaks their joined letter shapes, and their tall
+   glyphs get clipped by the tight Latin line-heights used on headings. */
+html:not([lang="en"]) .italic {
+  font-style: normal;
+}
+html:not([lang="en"]) [class*="tracking-"] {
+  letter-spacing: normal;
+}
+html:not([lang="en"]) h1,
+html:not([lang="en"]) h2 {
+  line-height: 1.28 !important;
+}

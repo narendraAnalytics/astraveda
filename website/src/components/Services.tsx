@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Reveal from "./Reveal";
 import AuthAwareLink from "./auth/AuthAwareLink";
 import TapHandLink, { type TapHandTheme } from "./TapHandLink";
+import { useI18n } from "@/i18n/I18nProvider";
 import { TOOL_IMAGES } from "@/lib/site";
 
 // Attention pills under the toolkit — each gets its own colour so they read as two things.
@@ -151,6 +152,7 @@ function CardShell({
 }
 
 export default function Services() {
+  const { d } = useI18n();
   return (
     <section
       id="toolkit"
@@ -160,10 +162,10 @@ export default function Services() {
       <div className="max-w-[1200px] mx-auto">
         <Reveal className="max-w-2xl mx-auto text-center mb-14 sm:mb-16">
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#8F29DD]/25 bg-[#8F29DD]/[.06] text-[#8F29DD] text-[13px] font-medium tracking-[.02em] mb-5">
-            Your Complete Toolkit
+            {d.toolkit.pill}
           </span>
           <h2 className="font-[family-name:var(--font-display)] text-[clamp(30px,4vw,44px)] leading-[1.1] text-[#1B1730] font-medium mb-4">
-            Every reading, one app,
+            {d.toolkit.titleA}
             <br />
             <span
               className="italic bg-clip-text text-transparent"
@@ -171,13 +173,11 @@ export default function Services() {
                 backgroundImage: "linear-gradient(90deg, #8F29DD, #D0447E, #E9BE6C)",
               }}
             >
-              powered by real AI
+              {d.toolkit.titleAccent}
             </span>
           </h2>
           <p className="text-[15.5px] leading-[1.65] text-[#5B5570]">
-            No third-party astrology API — every chart is computed on our own
-            Swiss Ephemeris engine, then written into a natural-language
-            reading by AI.
+            {d.toolkit.body}
           </p>
         </Reveal>
 
@@ -219,14 +219,14 @@ export default function Services() {
                   <div className="w-full h-full rounded-full bg-[#FFFAF2] p-[3px] overflow-hidden">
                     <img
                       src={tool.image}
-                      alt={tool.title}
+                      alt={d.toolkit.tools[i]?.title ?? tool.title}
                       className="w-full h-full rounded-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                   </div>
                 </motion.div>
 
                 <h3 className="text-[17px] font-semibold text-[#1B1730] mt-2">
-                  {tool.title}
+                  {d.toolkit.tools[i]?.title ?? tool.title}
                 </h3>
 
                 {!isLive && (
@@ -241,7 +241,7 @@ export default function Services() {
                 )}
 
                 <p className="text-[13.5px] leading-[1.6] text-[#5B5570] flex-1">
-                  {tool.desc}
+                  {d.toolkit.tools[i]?.desc ?? tool.desc}
                 </p>
 
                 <span
@@ -256,19 +256,16 @@ export default function Services() {
           })}
         </div>
 
-        <Reveal delay={0.1} className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <TapHandLink href="/virtual-puja" emoji="🪔" label="Virtual Puja — Free" tag="Try" theme={PUJA_THEME} />
+        <Reveal delay={0.1} className="mt-14 flex flex-wrap items-center justify-center gap-x-14 gap-y-10 sm:gap-x-24">
+          <TapHandLink href="/virtual-puja" emoji="🪔" label={d.toolkit.puja} tag={d.toolkit.pujaTag} theme={PUJA_THEME} />
           <TapHandLink
             href="/horoscope"
             emoji="🌤"
-            label="Daily Horoscope — Free"
-            tag="Read"
+            label={d.toolkit.horoscope}
+            tag={d.toolkit.horoscopeTag}
             theme={HOROSCOPE_THEME}
             delay={1.3}
           />
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#2FA7A0] bg-[#2FA7A0]/[.08] border border-[#2FA7A0]/20">
-            🌐 7 Languages Supported
-          </span>
         </Reveal>
       </div>
     </section>

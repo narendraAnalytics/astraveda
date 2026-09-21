@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import AuthSync from "@/components/AuthSync";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
@@ -52,8 +53,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         className={`${cormorant.variable} ${inter.variable} h-full antialiased`}
       >
         <body className="min-h-full flex flex-col">
-          <AuthSync />
-          {children}
+          <I18nProvider>
+            <AuthSync />
+            {children}
+          </I18nProvider>
         </body>
       </html>
     </ClerkProvider>

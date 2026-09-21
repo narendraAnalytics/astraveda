@@ -3,8 +3,10 @@
 import { Mic, PhoneCall, Clock3 } from "lucide-react";
 import Reveal from "./Reveal";
 import AuthAwareLink from "./auth/AuthAwareLink";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export default function VoiceSpotlight() {
+  const { d } = useI18n();
   return (
     <section
       id="ask-astraveda"
@@ -71,17 +73,14 @@ export default function VoiceSpotlight() {
             <Reveal delay={0.1}>
               <div className="text-center md:text-left">
                 <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[rgba(244,210,138,.35)] bg-[rgba(244,210,138,.1)] text-[#F4D28A] text-[13px] font-medium tracking-[.02em] mb-5">
-                  Ask AstraVeda
+                  {d.voice.pill}
                 </span>
                 <h2 className="font-[family-name:var(--font-display)] text-[clamp(28px,3.6vw,40px)] leading-[1.15] text-[#FFF7E6] font-medium mb-4">
-                  A real phone call with your
-                  <br className="hidden md:block" /> AI astrologer
+                  {d.voice.titleA}
+                  <br className="hidden md:block" /> {d.voice.titleB}
                 </h2>
                 <p className="text-[15px] leading-[1.7] text-[rgba(255,247,230,.72)] max-w-[520px] mx-auto md:mx-0 mb-8">
-                  No chat window, no waiting room — AstraVeda places an actual
-                  outbound voice call, confirms your birth details, and
-                  delivers your reading live on the same call. Call now or
-                  schedule an IST time slot.
+                  {d.voice.body}
                 </p>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                   <AuthAwareLink
@@ -90,14 +89,14 @@ export default function VoiceSpotlight() {
                     className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold text-[14.5px] text-[#241505] shadow-[0_8px_24px_rgba(244,210,138,.35)]"
                     style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
                   >
-                    <PhoneCall size={16} /> Call Me Now
+                    <PhoneCall size={16} /> {d.voice.callNow}
                   </AuthAwareLink>
                   <AuthAwareLink
                     signedOutHref="/sign-in"
                     signedInHref="/ask?when=scheduled"
                     className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full border border-[rgba(255,247,230,.3)] font-medium text-[14.5px] text-[#FFF7E6] bg-[rgba(255,247,230,.06)]"
                   >
-                    <Clock3 size={16} /> Schedule a Time
+                    <Clock3 size={16} /> {d.voice.schedule}
                   </AuthAwareLink>
                 </div>
               </div>
