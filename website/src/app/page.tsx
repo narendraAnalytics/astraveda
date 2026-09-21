@@ -1,3 +1,4 @@
+import WelcomeRobot from "@/components/WelcomeRobot";
 import IntroOverlay from "@/components/IntroOverlay";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
@@ -22,6 +23,7 @@ export default function Home() {
       <TrustStats />
       <DownloadCTA />
       <Footer />
+      <WelcomeRobot />
     </main>
   );
 }

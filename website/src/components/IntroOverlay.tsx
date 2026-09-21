@@ -53,6 +53,9 @@ export default function IntroOverlay() {
     }
     videoRef.current?.pause();
     setOpen(false);
+    // Tell the welcome robot the intro is done. (The robot's voice is fully independent of this
+    // video — this is only a "you can start now" signal, never an audio hand-off.)
+    window.dispatchEvent(new Event("astraveda:intro-entered"));
   };
 
   // Enter key = click Enter (unless a button is focused, which handles its own Enter).
