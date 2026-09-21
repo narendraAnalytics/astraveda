@@ -1,6 +1,5 @@
 "use client";
 
-import { Apple, PlayCircle } from "lucide-react";
 import Reveal from "./Reveal";
 import { useI18n } from "@/i18n/I18nProvider";
 
@@ -39,13 +38,15 @@ export default function DownloadCTA() {
                 className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full font-semibold text-[14.5px] text-[#241505] shadow-[0_8px_22px_rgba(0,0,0,.25)] transition-transform duration-300 hover:-translate-y-0.5"
                 style={{ background: "linear-gradient(180deg,#F7DDA2,#E9BE6C)" }}
               >
-                <Apple size={20} /> App Store
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/stores/app-store.png" alt="" width={24} height={24} className="h-6 w-auto drop-shadow-[0_2px_4px_rgba(0,0,0,.25)]" /> App Store
               </a>
               <a
                 href="#"
                 className="inline-flex items-center gap-2.5 px-6 py-3.5 rounded-full font-medium text-[14.5px] text-white border border-white/35 bg-white/10 backdrop-blur-md transition-colors duration-300 hover:bg-white/[.18]"
               >
-                <PlayCircle size={20} /> Google Play
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/stores/google-play.png" alt="" width={22} height={24} className="h-6 w-auto drop-shadow-[0_2px_4px_rgba(0,0,0,.3)]" /> Google Play
               </a>
             </div>
           </div>
