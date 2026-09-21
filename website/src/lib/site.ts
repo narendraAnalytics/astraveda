@@ -21,6 +21,21 @@ export const TOOL_IMAGES = {
   vastu: "https://res.cloudinary.com/dkqbzwicr/image/upload/v1788627479/houseai_fus43o.png",
 } as const;
 
+// "Explore AstraVeda" 3D ring — order matches `d.hero.features` (title/sub per slot).
+// Live tools link to their web page; Past Life / Matchmaking have no page yet.
+const showcaseImg = (path: string) =>
+  `https://res.cloudinary.com/dkqbzwicr/image/upload/w_640,f_auto,q_auto/${path}`;
+
+export const SHOWCASE: ReadonlyArray<{ img: string; href?: string }> = [
+  { img: showcaseImg("v1789975051/Kundli_Charts_Astrology_yt6koi.png"), href: "/kundali" },
+  { img: showcaseImg("v1789975054/Mystical_Palmistry_AI_hcxdno.png"), href: "/palm" },
+  { img: showcaseImg("v1789975055/Face_Reading_AI_Card_oljhml.png"), href: "/face" },
+  { img: showcaseImg("v1789975054/Vastu_AI_uyuxcy.png"), href: "/vastu" },
+  { img: showcaseImg("v1789975052/pastliveai_q6toan.png") },
+  { img: showcaseImg("v1789975054/soloconnections_unx83v.png") },
+  { img: showcaseImg("v1789975051/pujasandtemples_lxz6hx.png"), href: "/puja" },
+];
+
 export const NAV_LINKS = [
   { label: "Home", href: "#home" },
   { label: "Toolkit", href: "#toolkit" },

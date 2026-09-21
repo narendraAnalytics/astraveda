@@ -45,6 +45,10 @@ export const en = {
       { title: "Puja & Temples", sub: "Live & Personalized" },
     ],
   },
+  explore: {
+    title: "Explore AstraVeda",
+    hint: "Drag to spin · hover to explore",
+  },
   toolkit: {
     pill: "Your Complete Toolkit",
     titleA: "Every reading, one app,",

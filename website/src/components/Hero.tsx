@@ -1,104 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-} from "framer-motion";
 import { Sparkles, Languages as LanguagesIcon, PhoneCall } from "lucide-react";
 import { HERO_VIDEOS, VIDEO_URL } from "@/lib/site";
 import AuthAwareLink from "./auth/AuthAwareLink";
 import { useI18n } from "@/i18n/I18nProvider";
 
-// Icons stay fixed per slot; titles/subtitles come from the language dictionary.
-const FEATURE_ICONS = ["✦", "✋", "◎", "⌂", "❁", "♥", "🔔"];
-const FEATURE_ORDER = FEATURE_ICONS.map((_, i) => i);
-
-type FeatureCardData = { icon: string; title: string; sub: string };
-
-function FeatureCard({ f, i }: { f: FeatureCardData; i: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduceMotion = useReducedMotion();
-  const tiltX = useMotionValue(0);
-  const tiltY = useMotionValue(0);
-  const rotateX = useSpring(tiltX, { stiffness: 300, damping: 22, mass: 0.6 });
-  const rotateY = useSpring(tiltY, { stiffness: 300, damping: 22, mass: 0.6 });
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (reduceMotion || !ref.current) return;
-    const rect = ref.current.getBoundingClientRect();
-    const px = (e.clientX - rect.left) / rect.width;
-    const py = (e.clientY - rect.top) / rect.height;
-    tiltX.set((0.5 - py) * 14);
-    tiltY.set((px - 0.5) * 14);
-  };
-
-  const handlePointerLeave = () => {
-    tiltX.set(0);
-    tiltY.set(0);
-  };
-
-  return (
-    <motion.div
-      ref={ref}
-      layout
-      initial={{ opacity: 0, y: 18, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      whileHover={{ y: -6, scale: 1.03 }}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
-      style={{ rotateX, rotateY, transformPerspective: 700 }}
-      transition={{
-        layout: { type: "spring", stiffness: 260, damping: 26 },
-        opacity: { duration: 0.6, ease: "easeOut", delay: 0.15 + i * 0.07 },
-        y: { duration: 0.6, ease: "easeOut", delay: 0.15 + i * 0.07 },
-        scale: { duration: 0.3, ease: "easeOut" },
-      }}
-      className="av-feature-card group relative flex flex-col items-center gap-2.5 text-center px-3 py-5 rounded-2xl border border-[rgba(244,210,138,.16)] bg-[rgba(255,247,230,.045)] backdrop-blur-2xl transition-colors duration-300 ease-out hover:border-[rgba(244,210,138,.4)] hover:bg-[rgba(255,247,230,.09)] hover:shadow-[0_16px_36px_rgba(0,0,0,.35)] cursor-pointer"
-    >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-        style={{
-          background:
-            "linear-gradient(135deg, rgba(244,210,138,.5), transparent 40%, transparent 60%, rgba(244,210,138,.35))",
-          padding: 1,
-          WebkitMask:
-            "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-          WebkitMaskComposite: "xor",
-          maskComposite: "exclude",
-        }}
-      />
-      <span
-        className="flex items-center justify-center w-10 h-10 rounded-full text-lg text-[#F4D28A] bg-[rgba(244,210,138,.1)] border border-[rgba(244,210,138,.25)] transition-transform duration-300 ease-out group-hover:scale-110 group-hover:rotate-6"
-        style={{ transform: "translateZ(24px)" }}
-      >
-        {f.icon}
-      </span>
-      <div
-        className="text-[13px] sm:text-[13.5px] font-semibold text-[#FFF7E6]"
-        style={{ transform: "translateZ(16px)" }}
-      >
-        {f.title}
-      </div>
-      <div
-        className="text-[11px] sm:text-[11.5px] text-[rgba(255,247,230,.62)]"
-        style={{ transform: "translateZ(10px)" }}
-      >
-        {f.sub}
-      </div>
-      <span className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-gradient-to-r from-transparent via-[rgba(244,210,138,.5)] to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300" />
-    </motion.div>
-  );
-}
-
 export default function Hero() {
   const [videoOpen, setVideoOpen] = useState(false);
   const { d } = useI18n();
-  // The strip rotates by slot index, so a language switch never resets or re-keys it.
-  const [cards, setCards] = useState(FEATURE_ORDER);
   const STATS = [
     { value: "16+", label: d.hero.statCharts, Icon: Sparkles },
     { value: "7", label: d.hero.statLanguages, Icon: LanguagesIcon },
@@ -124,23 +34,11 @@ export default function Hero() {
     });
   }, [activeVideo]);
 
-  useEffect(() => {
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (prefersReducedMotion) return;
-
-    const id = setInterval(() => {
-      setCards((prev) => [...prev.slice(1), prev[0]]);
-    }, 3200);
-    return () => clearInterval(id);
-  }, []);
-
   return (
     <div
       id="home"
       data-nav-theme="dark"
-      className="av-scene relative w-full min-h-[920px] overflow-hidden font-[family-name:var(--font-body)]"
+      className="av-scene relative w-full min-h-[840px] overflow-hidden font-[family-name:var(--font-body)]"
     >
       {/* Background video slideshow (crossfade) */}
       {HERO_VIDEOS.map((src, idx) => (
@@ -310,19 +208,6 @@ export default function Hero() {
               </div>
             ))}
           </div>
-        </div>
-      </div>
-
-      {/* Feature strip */}
-      <div className="relative z-[6] max-w-[1360px] mx-auto mt-8 px-7 pb-8">
-        <div className="av-feature-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          {cards.map((idx, i) => (
-            <FeatureCard
-              key={idx}
-              f={{ icon: FEATURE_ICONS[idx], ...d.hero.features[idx] }}
-              i={i}
-            />
-          ))}
         </div>
       </div>
 
