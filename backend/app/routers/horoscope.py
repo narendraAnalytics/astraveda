@@ -2,8 +2,9 @@
 
 `GET /horoscope/all`   -> today's reading for all 12 signs
 `GET /horoscope?sign=` -> today's reading for one sign
+`GET /horoscope/today` -> same payload as `/all`, PUBLIC (no auth) — used by the website
 
-Both are Clerk-JWT protected (the app requires sign-in to view). The content is
+`/all` and `?sign=` are Clerk-JWT protected (the mobile app requires sign-in to view). The content is
 NOT user data — it's the same for everyone on a given day — so it's cached in
 Neon keyed by (sign, date), written once per day by a single Sarvam call.
 
@@ -93,6 +94,18 @@ async def horoscope_all(
     _: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> dict:
+    items = await _all_for_today(session)
+    return {"date": svc.ist_today().isoformat(), "signs": items}
+
+
+@router.get("/today")
+async def horoscope_today(session: Session = Depends(get_session)) -> dict:
+    """Public twin of `/all` for the website (signed-out visitors can read it).
+
+    Same payload and same once-a-day cache/Sarvam call as `/all`; nothing here is
+    user data. Generation is still bounded: one attempt per IST day (plus the
+    10-minute failure throttle) and the HOROSCOPE_AUTOGEN kill switch applies.
+    """
     items = await _all_for_today(session)
     return {"date": svc.ist_today().isoformat(), "signs": items}
 

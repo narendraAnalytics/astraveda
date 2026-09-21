@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Reveal from "./Reveal";
 import AuthAwareLink from "./auth/AuthAwareLink";
+import VirtualPujaLink from "./VirtualPujaLink";
 import { TOOL_IMAGES } from "@/lib/site";
 
 type Tool = {
@@ -240,15 +241,10 @@ export default function Services() {
         </div>
 
         <Reveal delay={0.1} className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <a
-            href="/virtual-puja"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#C1653D] bg-[#C1653D]/[.08] border border-[#C1653D]/20 transition hover:bg-[#C1653D]/[.16] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(193,101,61,.25)]"
-          >
-            🪔 Virtual Puja — Free
-          </a>
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#8F29DD] bg-[#8F29DD]/[.08] border border-[#8F29DD]/20">
+          <VirtualPujaLink />
+          <a href="/horoscope" className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#8F29DD] bg-[#8F29DD]/[.08] border border-[#8F29DD]/20 transition hover:bg-[#8F29DD]/[.16] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(143,41,221,.25)]">
             🌤 Daily Horoscope — Free
-          </span>
+          </a>
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#2FA7A0] bg-[#2FA7A0]/[.08] border border-[#2FA7A0]/20">
             🌐 7 Languages Supported
           </span>
