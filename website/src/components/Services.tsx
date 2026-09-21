@@ -240,9 +240,12 @@ export default function Services() {
         </div>
 
         <Reveal delay={0.1} className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#C1653D] bg-[#C1653D]/[.08] border border-[#C1653D]/20">
+          <a
+            href="/virtual-puja"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#C1653D] bg-[#C1653D]/[.08] border border-[#C1653D]/20 transition hover:bg-[#C1653D]/[.16] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(193,101,61,.25)]"
+          >
             🪔 Virtual Puja — Free
-          </span>
+          </a>
           <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium text-[#8F29DD] bg-[#8F29DD]/[.08] border border-[#8F29DD]/20">
             🌤 Daily Horoscope — Free
           </span>
