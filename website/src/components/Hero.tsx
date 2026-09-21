@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Sparkles, Languages as LanguagesIcon, PhoneCall } from "lucide-react";
 import { HERO_VIDEOS, VIDEO_URL } from "@/lib/site";
 import AuthAwareLink from "./auth/AuthAwareLink";
+import { CoverStage, WatermarkPatch } from "./WatermarkPatch";
 import { useI18n } from "@/i18n/I18nProvider";
 
 export default function Hero() {
@@ -42,26 +43,34 @@ export default function Hero() {
     >
       {/* Background video slideshow (crossfade) */}
       {HERO_VIDEOS.map((src, idx) => (
-        <video
+        // Same as `object-cover` + `object-position: 62% 20%` + a 1.08 zoom, but done with a
+        // 16:9 stage so the watermark cover-up shares the video's coordinate space.
+        <div
           key={src}
-          ref={(el) => {
-            videoRefs.current[idx] = el;
-          }}
-          className="absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-in-out"
+          className="absolute inset-0 [container-type:size] transition-opacity duration-[1200ms] ease-in-out"
           style={{
-            objectPosition: "62% 20%",
             transform: "scale(1.08)",
             opacity: idx === activeVideo ? 1 : 0,
             zIndex: idx === activeVideo ? 1 : 0,
           }}
-          autoPlay={idx === 0}
-          muted
-          playsInline
-          preload="auto"
-          onEnded={idx === activeVideo ? handleVideoEnded : undefined}
         >
-          <source src={src} type="video/webm" />
-        </video>
+          <CoverStage posX={0.62} posY={0.2}>
+            <video
+              ref={(el) => {
+                videoRefs.current[idx] = el;
+              }}
+              className="absolute inset-0 h-full w-full"
+              autoPlay={idx === 0}
+              muted
+              playsInline
+              preload="auto"
+              onEnded={idx === activeVideo ? handleVideoEnded : undefined}
+            >
+              <source src={src} type="video/webm" />
+            </video>
+            <WatermarkPatch />
+          </CoverStage>
+        </div>
       ))}
 
       {/* Gradient overlay for legibility */}

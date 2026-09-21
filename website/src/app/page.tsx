@@ -1,3 +1,4 @@
+import IntroOverlay from "@/components/IntroOverlay";
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import FeatureCarousel from "@/components/FeatureCarousel";
@@ -11,6 +12,7 @@ import Footer from "@/components/Footer";
 export default function Home() {
   return (
     <main className="flex flex-col flex-1">
+      <IntroOverlay />
       <Navbar />
       <Hero />
       <FeatureCarousel />

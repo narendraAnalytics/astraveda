@@ -41,6 +41,11 @@ export const mr: Dict = {
       { title: "पूजा आणि मंदिरे", sub: "थेट आणि वैयक्तिक" },
     ],
   },
+  intro: {
+    enter: "प्रवेश करा",
+    soundOn: "आवाज सुरू करा",
+    soundOff: "आवाज बंद करा",
+  },
   explore: {
     title: "AstraVeda एक्सप्लोर करा",
     hint: "फिरवण्यासाठी ओढा · पाहण्यासाठी होवर करा",

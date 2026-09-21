@@ -3,6 +3,10 @@ export const LOGO_URL =
 export const VIDEO_URL =
   "https://res.cloudinary.com/dkqbzwicr/video/upload/v1789539143/astrovedawebvideo_q5y6iu.webm";
 
+// Full-screen welcome video shown once per browser session (IntroOverlay).
+export const INTRO_VIDEO =
+  "https://res.cloudinary.com/dkqbzwicr/video/upload/v1789988964/introvideo_yrsezz.webm";
+
 export const HERO_VIDEOS = [
   "https://res.cloudinary.com/dkqbzwicr/video/upload/v1789566448/Create_an_second_cinematic_v_oixgya.webm",
   VIDEO_URL,
